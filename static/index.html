@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шифрование документа</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+        }
+        .download-link {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .download-link:hover {
+            background-color: #218838;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Шифрование документа</h1>
+        <p>Загрузите файл для шифрования (поддерживаемые форматы: .txt, .docx, .pdf и т.д.). Приложение использует GOST-шифрование для защиты данных.</p>
+        
+        <form method="post" enctype="multipart/form-data">
+            <label for="file">Выберите документ:</label>
+            <input type="file" id="file" name="file" required accept=".txt,.docx,.pdf,.zip">
+            <br>
+            <button type="submit">Зашифровать и скачать</button>
+        </form>
+        
+        <div class="result {% if error %}error{% endif %}">
+            <h2>{{value}}</h2>
+            <p>Зашифрованный файл готов к скачиванию:</p>
+            <a href="{{ download_url }}" class="download-link" download>Скачать зашифрованный документ</a>
+        </div>
+    </div>
+</body>
+</html>
