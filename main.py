@@ -19,7 +19,10 @@ def get_hash(obj):
     result = hash_obj.hexdigest()
     return result
 
-def authenticate_user(id:str, passwd:str) -> bool:
+
+
+
+def check_if_user_exists(id:str,  passwd:str) -> bool:
     if sql_check(id):
         if sql_check(passwd):pass
         else: return False
@@ -32,16 +35,38 @@ def authenticate_user(id:str, passwd:str) -> bool:
         raise ValueError
     
     hash_pass = get_hash(passwd)
+
     cursor.execute('''SELECT * FROM user WHERE work_id = ? AND hash_pass = ?''', (id, hash_pass,))
     rows = cursor.fetchall()
-    if rows is None:
+    if not rows:
         return False
     else:
         return True
 
+
+def register_user(id:str, name:str, passwd:str) -> bool:
+    if sql_check(id):
+        if sql_check(passwd):
+            if sql_check(name):
+                pass
+            else: return False
+        else: return False
+    else: return False
+
+    try:
+        conn = sqlite3.connect('db.db')
+        cursor = conn.cursor()
+    except:
+        raise ValueError
     
-    
-    
+    hash_pass = get_hash(passwd)
+    cursor.execute('''INSERT INTO user(name, hash_pass, work_id) VALUES (?,?,?)''', (name, hash_pass, id,))
+    conn.commit()
+    return True
+
+
+
+
 
 
 

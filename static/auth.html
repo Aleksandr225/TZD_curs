@@ -98,6 +98,7 @@
         <div id="login" class="tab-content active">
             <h2>Вход в систему</h2>
             <form method="post" action="/login">
+                <input type="hidden" name="active_tab" id="active_tab" value="login">
 
                 <label for="login_id">ID:</label>
                 <input type="id" id="login_id" name="id" required>
@@ -116,18 +117,18 @@
         
         <div id="register" class="tab-content">
             <h2>Регистрация</h2>
-            <form method="post" action="/register">
+            <form method="post" action="/login">
                 <label for="register_ID">ID:</label>
                 <input type="id" id="register_id" name="id" required>
 
+                <input type="hidden" name="active_tab" id="active_tab" value="register">
+
                 <label for="register_name">ФИО:</label>
-                <input type="name" id="register_name" name="name" required minlength="6">
+                <input type="text" id="register_name" name="name" required minlength="6">
 
                 <label for="register_password">Пароль:</label>
                 <input type="password" id="register_password" name="password" required minlength="6">
                 
-                <label for="confirm_password">Подтвердите пароль:</label>
-                <input type="password" id="confirm_password" name="confirm_password" required>
                 
                 <button type="submit">Зарегистрироваться</button>
             </form>
@@ -143,13 +144,22 @@
         function showTab(tabId) {
             const tabs = document.querySelectorAll('.tab');
             const contents = document.querySelectorAll('.tab-content');
-            
+    
             tabs.forEach(tab => tab.classList.remove('active'));
             contents.forEach(content => content.classList.remove('active'));
-            
+    
             document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
             document.getElementById(tabId).classList.add('active');
+    
+            // Добавьте эту строку: обновляем hidden input при переключении таба
+            document.getElementById('active_tab').value = tabId;
         }
+
+        function setTab(tabName) {
+            document.getElementById('active_tab').value = tabName;
+            document.getElementById('tabForm').submit();
+        }
+
     </script>
 </body>
 </html>

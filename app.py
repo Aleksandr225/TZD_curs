@@ -14,15 +14,32 @@ def home_page():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        user_id = request.form['id']
-        password = request.form['password']
-        print(user_id, password)
-        print(authenticate_user(user_id, user_id))
-        if authenticate_user(user_id, password):
-            return redirect('home')
+        active_tab = request.form.get('active_tab', 'login')
+        
+        if active_tab == 'login':
+            user_id = request.form['id']
+            password = request.form['password']
+        
+            if check_if_user_exists(user_id, password) is True:
+                return redirect('home')
+            else:
+                return render_template('auth.html', login_message='Неверные данные')
+            
         else:
-            return render_template('auth.html', login_message='Неверные данные')
+            user_id = request.form['id']
+            password = request.form['password']
+            name = request.form['name']
+            if check_if_user_exists(user_id, password) is True:
+                return render_template('auth.html', login_message='Такой пользователь уже существует')
+            else:
+                if register_user(user_id, name, password) is True:
+                    return redirect('home')
+                else:
+                    return render_template('auth.html', login_message='Неверные данные')
+
     return render_template('auth.html')
+
+
 
 
 
