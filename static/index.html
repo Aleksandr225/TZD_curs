@@ -7,6 +7,362 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            /* позволяем странице быть во всю ширину, чтобы панель могла расширяться влево */
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+        }
+        .download-link {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .download-link:hover {
+            background-color: #218838;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        /* Стили для левой панели и обертки */
+        .main-wrapper {
+            /* используем переменные чтобы легко управлять позиционированием */
+            --container-max: 800px;
+            --container-half: 400px; /* половина max-width */
+            --sidebar-width: 300px;
+            --gap: 12px;
+
+            position: relative;
+            min-height: 100vh;
+            padding: 12px 0; /* верх/низ, боковые отступы не нужны */
+        }
+
+        /* Более нейтральный, белый дизайн боковой панели */
+        .sidebar {
+            width: var(--sidebar-width); /* компактная, аккуратная ширина */
+            background: #ffffff;
+            color: #2b4865;
+            padding: 20px;
+            box-sizing: border-box;
+            border-radius: 12px; /* закруглённые углы */
+            box-shadow: 0 8px 20px rgba(43,72,101,0.06);
+            border: 1px solid rgba(43,72,101,0.06);
+            /* фиксированное расположение слева от центрированного основного окна */
+            position: absolute;
+            top: 54px; /* опущено, чтобы совпадало с верхом основного окна (.container) */
+            transform: none;
+            left: calc(50% - var(--container-half) - var(--sidebar-width) - var(--gap));
+        }
+
+        .sidebar h2 {
+            margin: 0 0 14px 0;
+            font-size: 16px;
+            color: #233e55;
+        }
+
+        /* Кнопки — аккуратные, белые по умолчанию с акцентом при выборе */
+        .cipher-btn {
+            display: block;
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            background: #f7fafc; /* очень светлый фон */
+            border: 1px solid rgba(35,62,85,0.06);
+            color: #233e55;
+            text-align: left;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            box-shadow: none;
+        }
+
+        .cipher-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(35,62,85,0.04);
+        }
+
+        .cipher-btn.active {
+            background: #233e55; /* основной цвет акцента */
+            color: white;
+            font-weight: 600;
+            border-color: rgba(35,62,85,0.12);
+            box-shadow: 0 8px 18px rgba(35,62,85,0.08);
+        }
+
+        .main-content {
+            /* центрируем основное окно по горизонтали и располагаем вверху страницы */
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 12px; /* опустил/поднял основное окно выше по запросу */
+            width: var(--container-max);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* на узких экранах панель станет статичной сверху, основной контент займёт поток */
+        @media (max-width: 980px) {
+            .sidebar {
+                position: relative;
+                left: 0;
+                transform: none;
+                top: auto;
+                margin: 0 auto 16px auto;
+            }
+            .main-content {
+                position: static;
+                transform: none;
+                width: 100%;
+                padding: 12px;
+            }
+            .main-wrapper {
+                padding: 12px;
+            }
+        }
+
+        /* Сохраняем прежний визуальный размер основного окна */
+        .container {
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar">
+            <h2>Режимы работы программы</h2>
+            <button class="cipher-btn active" onclick="selectMode(this, 'kuznechik')">Кузнечик (симм.)</button>
+            <button class="cipher-btn" onclick="selectMode(this, 'rsa')">RSA (асимм.)</button>
+            <button class="cipher-btn" onclick="selectMode(this, 'elgamal')">ElGamal (асимм.)</button>
+            <button class="cipher-btn" onclick="selectMode(this, 'hash')">Хеширование</button>
+            <button class="cipher-btn" onclick="selectMode(this, 'sign')">Выработка ЭЦП</button>
+            <button class="cipher-btn" onclick="selectMode(this, 'keygen')">Генерация ключей</button>
+        </aside>
+
+        <div class="main-content">
+        <div class="container">
+        <h1>Шифрование документа</h1>
+        <p>Загрузите файл для шифрования (поддерживаемые форматы: .txt, .docx, .pdf и т.д.). Приложение использует GOST-шифрование для защиты данных.</p>
+    <!-- Отображение текущего выбранного режима (обновляется при клике слева) -->
+    <p id="selectedModeDisplay">Выбран режим: <strong id="selectedModeName">Кузнечик (симм.)</strong></p>
+        
+        <form method="post" enctype="multipart/form-data">
+            <!-- скрытый input, содержит выбранный режим для отправки на сервер -->
+            <input type="hidden" name="mode" id="modeInput" value="kuznechik">
+            <label for="file">Выберите документ:</label>
+            <input type="file" id="file" name="file" required accept=".txt,.docx,.pdf,.zip">
+            <br>
+            <button type="submit">Зашифровать и скачать</button>
+        </form>
+        
+        <div class="result {% if error %}error{% endif %}">
+            <h2>{{value}}</h2>
+            <p>Зашифрованный файл готов к скачиванию:</p>
+            <a href="{{ download_url }}" class="download-link" download>Скачать зашифрованный документ</a>
+        </div>
+    </div>
+    </div> <!-- .main-content -->
+    </div> <!-- .main-wrapper -->
+
+    <script>
+        // Обработчик для кнопок выбора режима: пометить активную кнопку, обновить скрытый input и отображение
+        function selectMode(btn, mode) {
+            document.querySelectorAll('.cipher-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Обновляем скрытый input для формы
+            const input = document.getElementById('modeInput');
+            if (input) input.value = mode;
+            // Обновляем текст в основном окне
+            const nameMap = {
+                kuznechik: 'Кузнечик (симм.)',
+                rsa: 'RSA (асимм.)',
+                elgamal: 'ElGamal (асимм.)',
+                hash: 'Хеширование',
+                sign: 'Выработка ЭЦП',
+                keygen: 'Генерация ключей'
+            };
+            const display = document.getElementById('selectedModeName');
+            if (display) display.textContent = nameMap[mode] || mode;
+            console.log('Выбран режим:', mode);
+        }
+
+        // При загрузке страницы убедимся, что текст соответствует начальному значению скрытого input
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('modeInput');
+            if (input) {
+                const value = input.value || 'kuznechik';
+                // установить активную кнопку соответствующую значению
+                const btn = Array.from(document.querySelectorAll('.cipher-btn')).find(b => b.getAttribute('onclick')?.includes(`'${value}'`));
+                if (btn) btn.classList.add('active');
+                const map = {kuznechik:'Кузнечик (симм.)', rsa:'RSA (асимм.)', elgamal:'ElGamal (асимм.)', hash:'Хеширование', sign:'Выработка ЭЦП', keygen:'Генерация ключей'};
+                const display = document.getElementById('selectedModeName');
+                if (display) display.textContent = map[value] || value;
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шифрование документа</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
@@ -89,4 +445,4 @@
         </div>
     </div>
 </body>
-</html>
+</html> -->
