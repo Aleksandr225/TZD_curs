@@ -1,7 +1,10 @@
 
 from flask import Flask, render_template, redirect, request, jsonify
+from main import check_if_user_exists, register_user, get_hash_for_file
+
+
 app = Flask(__name__, template_folder="static")
-from main import *
+
 @app.route('/')
 def home_page():
     return render_template('auth.html')
@@ -50,8 +53,24 @@ def reg_page():
     return render_template('index.html', value='shifr')
 
 
+
+# добавила маршрут для хэшироания 
+@app.route('/get_file_hash', methods=['POST'])
+def get_file_hash():
+    uploaded_file = request.files.get('file')
+    if not uploaded_file:
+        return jsonify({'error': 'Файл не получен'}), 400
+
+    file_path = f"uploads/{uploaded_file.filename}"
+    uploaded_file.save(file_path)
+
+    hash_value = get_hash_for_file(file_path)
+
+    return jsonify({"hash": hash_value})
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
 
 
 
