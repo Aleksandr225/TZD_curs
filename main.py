@@ -1,4 +1,5 @@
 import sqlite3
+import os
 import gostcrypto
 import redis
 
@@ -13,12 +14,24 @@ def get_hash(obj):
     result = hash_obj.hexdigest()
     return result
 
+#  добавила функцию подключения к редис 
+def get_redis_client():
+    return redis.Redis(
+        host=os.getenv('REDIS_HOST', 'localhost'),
+        port=int(os.getenv('REDIS_PORT', 6379)),
+        decode_responses=True,
+        socket_connect_timeout=5,
+        socket_timeout=5,
+        db=0 # вообще это значение по умолчанию, но у тебя в коде ниже было это, поэтому оставила 
+    )
 
 
 
+
+# криво рабоатет ==> если вводишь неправильный логин, то запускает 
 def check_if_user_exists(id:str,  passwd:str) -> bool:
     try:
-        r = redis.Redis(host='localhost', port=6379, db=0)
+        r = get_redis_client()
     except:
         raise ValueError
     
@@ -34,7 +47,7 @@ def check_if_user_exists(id:str,  passwd:str) -> bool:
 
 def register_user(id:str, name:str, passwd:str) -> bool:
     try:
-        r = redis.Redis(host='localhost', port=6379, db=0)
+        r = get_redis_client()
     except:
         raise ValueError
     
@@ -51,14 +64,14 @@ def get_hash_for_file(file_path):
     with open(file_path, 'rb') as file:
         buffer = file.read(buffer_size)
         while len(buffer) > 0:
-            hash_obj.update(buffer)
+            hash_obj.update(buffer) # type: ignore
             buffer = file.read(buffer_size)
     hash_result = hash_obj.hexdigest()
+    return hash_result
 
 
 
-
-
+# print(get_hash_for_file('/Users/a666vg/TZD_curs/main.py'))
 
 
 
