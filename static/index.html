@@ -48,7 +48,19 @@
                 <div id="rsaBlock" class="mode-block" style="display:none;">[RSA: форма будет здесь]</div>
                 <div id="elgamalBlock" class="mode-block" style="display:none;">[ElGamal: форма будет здесь]</div>
                 <div id="signBlock" class="mode-block" style="display:none;">[ЭЦП: форма будет здесь]</div>
-                <div id="keygenBlock" class="mode-block" style="display:none;">[Генерация ключей]</div>
+                <div id="keygenBlock" class="mode-block" style="display:none; margin-top:20px;">
+                    <h2>Генерация ключей</h2>
+                    <p id="keygenDescription">На этой странице можно сгенерировать новый секретный ключ локально в браузере. Нажмите кнопку "Сгенерировать" — затем появится поле с ключом и кнопки для копирования/скачивания.</p>
+                    <div class="keygen-controls" style="margin-top:12px;">
+                        <button id="generateKeyButton" type="button">Сгенерировать ключ</button>
+                        <div id="keyArea" style="display:none; margin-top:12px;">
+                            <div class="input-with-copy">
+                                <input id="generatedKeyInput" readonly placeholder="Ключ появится здесь..." />
+                                <button id="copyKeyIcon" type="button" class="copy-icon" title="Копировать"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- КНОПКА "ШИФРОВАТЬ" для симметричных режимов -->
                 <button id="encryptButton" style="display:none; margin-top:20px;">Зашифровать</button>
@@ -111,6 +123,13 @@
             else if (blocks[mode]) {
                 blocks[mode].style.display = "block";
             }
+            // Скрываем область загрузки файла при некоторых режимах
+            const uploadSection = document.querySelector('.upload-section');
+            if (mode === 'keygen') {
+                if (uploadSection) uploadSection.style.display = 'none';
+            } else {
+                if (uploadSection) uploadSection.style.display = '';
+            }
         }
 
         // При загрузке страницы
@@ -130,6 +149,57 @@
             // Имитируем клик, чтобы показать правильную форму
             if (btn) btn.click();
         });
+
+        // Генерация и работа с ключом на стороне клиента
+        function generateKeyLocal(length = 64) {
+            // length = число hex-символов; 64 hex = 32 байта
+            const bytes = new Uint8Array(length / 2);
+            if (window.crypto && crypto.getRandomValues) {
+                crypto.getRandomValues(bytes);
+            } else {
+                // fallback: Math.random (не криптографически безопасно)
+                for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+            }
+            return Array.from(bytes, b => ('0' + b.toString(16)).slice(-2)).join('').toUpperCase();
+        }
+
+        function showKeyOnUI(key) {
+            const area = document.getElementById('keyArea');
+            const input = document.getElementById('generatedKeyInput');
+            if (!area || !input) return;
+            input.value = key;
+            area.style.display = 'block';
+        }
+
+        // Привязки кнопок
+        const genBtn = document.getElementById('generateKeyButton');
+        if (genBtn) {
+            genBtn.addEventListener('click', (e) => {
+                const key = generateKeyLocal(64);
+                showKeyOnUI(key);
+            });
+        }
+
+        const copyIcon = document.getElementById('copyKeyIcon');
+        if (copyIcon) {
+            // добавим визуальный символ
+            copyIcon.textContent = '📋';
+            copyIcon.addEventListener('click', async () => {
+                const input = document.getElementById('generatedKeyInput');
+                if (!input || !input.value) return;
+                try {
+                    await navigator.clipboard.writeText(input.value);
+                    alert('Ключ скопирован в буфер обмена');
+                } catch (err) {
+                    // fallback
+                    input.select();
+                    document.execCommand('copy');
+                    alert('Ключ скопирован (fallback)');
+                }
+            });
+        }
+
+
 
     
 
@@ -170,7 +240,9 @@
             });
         }
 
-        document.getElementById("fileForm").addEventListener("submit", async function (e) {
+        const fileFormEl = document.getElementById("fileForm");
+        if (fileFormEl) {
+            fileFormEl.addEventListener("submit", async function (e) {
             e.preventDefault();
 
             const formData = new FormData();
@@ -185,207 +257,9 @@
 
             resultText.textContent = data.result || data.error;
             resultBlock.style.display = "block";
-        });
+            });
+        }
 
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Шифрование документа</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        form {
-            margin-bottom: 20px;
-        }
-        input[type="file"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            border-radius: 5px;
-        }
-        .download-link {
-            display: inline-block;
-            background-color: #28a745;
-            color: white;
-            padding: 10px 15px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-        .download-link:hover {
-            background-color: #218838;
-        }
-        .error {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Шифрование документа</h1>
-        <p>Загрузите файл для шифрования (поддерживаемые форматы: .txt, .docx, .pdf и т.д.). Приложение использует GOST-шифрование для защиты данных.</p>
-        
-        <form method="post" enctype="multipart/form-data">
-            <label for="file">Выберите документ:</label>
-            <input type="file" id="file" name="file" required accept=".txt,.docx,.pdf,.zip">
-            <br>
-            <button type="submit"> и скачать</button>
-        </form>
-        
-        <div class="result {% if error %}error{% endif %}">
-            <h2>{{value}}</h2>
-            <p>Зашифрованный файл готов к скачиванию:</p>
-            <a href="{{ download_url }}" class="download-link" download>Скачать зашифрованный документ</a>
-        </div>
-    </div>
-</body>
-</html> -->

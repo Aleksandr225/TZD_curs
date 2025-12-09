@@ -163,3 +163,41 @@ button:hover {
     width: 100%;
     margin: 0 auto;
 }
+
+/* Стили для блока генерации ключей */
+.keygen-controls {
+    display: block;
+}
+
+#keyArea input#generatedKeyInput {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    font-family: monospace;
+    box-sizing: border-box;
+}
+/* Встроенная иконка копирования внутри поля */
+.input-with-copy { position: relative; display: block; }
+.input-with-copy input { width: 100%; padding-right: 44px; box-sizing: border-box; }
+.input-with-copy .copy-icon { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border-radius: 6px; padding: 6px; background-color: #fff; color: #000; border: 1px solid #000; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 30px; width: 32px; }
+.input-with-copy .copy-icon:hover { background-color: #f3f3f3; }
+
+/* В мобильных устройствах иконка должна быть touch-friendly */
+@media (max-width: 480px) {
+    .input-with-copy input { padding-right: 52px; }
+    .input-with-copy .copy-icon { width: 36px; height: 34px; right: 8px; }
+}
+
+/* Стили для генерации и копирования - синие кнопки */
+#keyArea button, #generateKeyButton {
+    background-color: #007bff;
+    border: none;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#keyArea button:hover, #generateKeyButton:hover { background-color: #0056b3; }
+
