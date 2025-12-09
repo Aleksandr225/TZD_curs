@@ -36,12 +36,12 @@ def check_if_user_exists(id:str,  passwd:str) -> bool:
     
     hash_pass = get_hash(passwd)
 
-    val = r.hmget(id, 'id', 'passw')
+    val = r.hmget(id, 'id', 'passwd')
     print(val)
     if val[0] == id and val[1] == hash_pass:
-        return False
-    else:
         return True
+    else:
+        return False
 
 
 def register_user(id:str, name:str, passwd:str) -> bool:
