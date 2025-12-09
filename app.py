@@ -1,7 +1,6 @@
 
 from flask import Flask, render_template, redirect, request, jsonify
-from main import check_if_user_exists, register_user, get_hash_for_file
-
+from main import *
 
 app = Flask(__name__, template_folder="static")
 
@@ -60,13 +59,25 @@ def get_file_hash():
     uploaded_file = request.files.get('file')
     if not uploaded_file:
         return jsonify({'error': 'Файл не получен'}), 400
+    
+    if check_data_in_redis(uploaded_file.filename) is True:
+        hash_value = get_data_from_redis(f'{uploaded_file.filename}:hash')
+    else:
 
-    file_path = f"uploads/{uploaded_file.filename}"
-    uploaded_file.save(file_path)
+        file_path = f"uploads/{uploaded_file.filename}"
+        uploaded_file.save(file_path)
 
-    hash_value = get_hash_for_file(file_path)
+        hash_value = get_hash_for_file(file_path)
+    
 
     return jsonify({"hash": hash_value})
+
+
+
+@app.route('/gen_key', methods=['POST'])
+def key_gen():
+    key = generate_key()
+    return render_template({'key': key})
 
 
 if __name__ == '__main__':
