@@ -64,14 +64,15 @@ button:hover {
 /* Стили для левой панели и обертки */
 .main-wrapper {
     /* используем переменные чтобы легко управлять позиционированием */
-    --container-max: 800px;
-    --container-half: 400px; /* половина max-width */
-    --sidebar-width: 300px;
+    --container-max: 1100px;
+    --sidebar-width: 260px;
     --gap: 12px;
 
-    position: relative;
+    display: flex;
+    gap: var(--gap);
     min-height: 100vh;
-    padding: 12px 0; /* верх/низ, боковые отступы не нужны */
+    align-items: flex-start;
+    padding: 12px;
 }
 
 /* Более нейтральный, белый дизайн боковой панели */
@@ -84,11 +85,9 @@ button:hover {
     border-radius: 12px; /* закруглённые углы */
     box-shadow: 0 8px 20px rgba(43,72,101,0.06);
     border: 1px solid rgba(43,72,101,0.06);
-    /* фиксированное расположение слева от центрированного основного окна */
-    position: absolute;
-    top: 54px; /* опущено, чтобы совпадало с верхом основного окна (.container) */
-    transform: none;
-    left: calc(50% - var(--container-half) - var(--sidebar-width) - var(--gap));
+    position: sticky; /* оставаться видимой при скролле */
+    top: 12px;
+    z-index: 5;
 }
 
 .sidebar h2 {
@@ -113,6 +112,9 @@ button:hover {
     box-shadow: none;
 }
 
+/* Переопределения для маленьких кнопок режима, отображаемых внизу */
+/* устаревшие стили для нижних кнопок удалены */
+
 .cipher-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(35,62,85,0.04);
@@ -127,13 +129,10 @@ button:hover {
 }
 
 .main-content {
-    /* центрируем основное окно по горизонтали и располагаем вверху страницы */
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    top: 12px; /* опустил/поднял основное окно выше по запросу */
-    width: var(--container-max);
-    padding: 20px;
+    flex: 1 1 auto;
+    display: block;
+    width: 100%;
+    padding: 10px 0;
     box-sizing: border-box;
 }
 
@@ -155,11 +154,13 @@ button:hover {
     .main-wrapper {
         padding: 12px;
     }
+    .content-grid { grid-template-columns: 1fr; }
+    .workflow-panel { position: static; width: 100%; margin-top: 12px; }
 }
 
 /* Сохраняем прежний визуальный размер основного окна */
 .container {
-    max-width: 800px;
+    max-width: var(--container-max);
     width: 100%;
     margin: 0 auto;
 }
@@ -177,6 +178,134 @@ button:hover {
     font-family: monospace;
     box-sizing: border-box;
 }
+
+/* Документы - список/вьювер/схема */
+.documents-layout .doc-list { background:#fff; border:1px solid #ddd; padding:12px; border-radius:8px; }
+.documents-layout .doc-view { background:#fff; border:1px solid #ddd; padding:12px; border-radius:8px; }
+.documents-layout .doc-workflow { background:#fff; border:1px solid #ddd; padding:12px; border-radius:8px; }
+.doc-list-ul li { list-style: none; padding:10px 12px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; }
+.doc-list-ul li .left { display:flex; flex-direction:column; min-width: 0; }
+.doc-list-ul li .title { font-weight:600; color:#111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-list-ul li .excerpt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-list-ul li:hover { background:#f1f5f9; }
+.doc-list-ul li.selected { background: #eef2ff; font-weight:700; }
+
+.doc-badge { margin-left: 8px; font-size: 11px; padding: 3px 8px; border-radius: 12px; }
+.doc-badge.status-none { background:#f3f4f6; color:#374151; }
+.doc-badge.status-progress { background:#e0f2fe; color:#0369a1; }
+.doc-badge.status-done { background:#dcfce7; color:#166534; }
+.doc-badge.status-rejected { background:#fee2e2; color:#991b1b; }
+
+.wf-step { transition: all 0.12s ease; }
+.wf-step.pending { opacity: 0.85; }
+.wf-step.current { box-shadow: 0 8px 16px rgba(0,123,255,0.08); }
+.wf-step.approved { opacity: 0.95; }
+.wf-step.rejected { opacity: 1; }
+
+.documents-layout button { padding:8px 12px; border-radius:6px; background:#007bff; color:#fff; border:none; cursor:pointer; }
+.documents-layout button:hover { background:#0056b3; }
+
+/* Карточки */
+.documents-layout .doc-list, .documents-layout .doc-view, .documents-layout .doc-workflow { box-shadow: 0 8px 20px rgba(2,6,23,0.06); }
+
+#docViewContainer { min-height:200px; max-height: 320px; overflow:auto; }
+.wf-step { padding: 8px 14px; font-size: 14px; }
+.wf-step:hover { transform: translateY(-3px); }
+.wf-step .name { font-weight:600; }
+.wf-step .assigned { color:#6366f1; font-size:12px; }
+.wf-step.current { border-color: #2563eb; }
+
+.documents-layout h3 { margin-top: 0; font-weight:700; color:#111827; }
+.documents-layout .doc-list ul { margin: 0; padding: 0; }
+.doc-list-ul li .title { flex:1; }
+.doc-list-ul li .excerpt { display:block; font-size:12px; color:#6b7280; }
+
+/* Сетка и формы */
+.content-grid { display:grid; grid-template-columns: 1fr; gap:18px; }
+.doc-add input[type=file] { width: 100%; }
+.doc-add button, #addDocFromFileBtn { margin-top:6px; width:100%; }
+
+/* Центрирование вьювера */
+.doc-view { display:flex; flex-direction:column; align-items:center; max-width: 900px; margin: 0 auto; }
+.doc-view h3 { width:100%; text-align:center; }
+.doc-view #docViewContainer { width:100%; min-height: 420px; }
+.doc-view #docActions { justify-content:center; }
+
+/* Визуальные улучшения вкладок режима "Кузнечик" */
+.kuz-tabs { background: #fff; border: 1px solid #e6edf6; border-radius: 10px; padding: 10px; box-shadow: 0 4px 12px rgba(35,62,85,0.03); }
+.kuz-tabs .tab-bar .tab-item { padding: 10px 16px; border-radius:8px; }
+.kuz-tabs .tab-bar .tab-item.active { background: linear-gradient(90deg,#eef2ff,#e6f0ff); border-color: #dbe8ff; }
+.kuz-tabs .tab-content .tab-pane { padding: 8px 6px; }
+
+.mode-description { background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:8px; color:#0f172a; font-weight:500; }
+.workspace-row input[type=file] { width:100%; }
+.workspace-row button { min-width: 140px; }
+.file-row label { margin-right:6px; }
+.file-row { margin-bottom: 10px; }
+.file-row input { flex:1; }
+.file-row button { white-space:nowrap; }
+.doc-actions button { padding:10px 14px; border-radius:8px; }
+.doc-actions { width:100%; display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; align-items:center; }
+.doc-actions > div > button { width:100%; min-height:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; }
+/* Выравнивание трех кнопок: слева, по центру, справа — задано для колонок */
+.doc-actions > div { display:flex; }
+.doc-actions > div:nth-child(1) { justify-content:flex-start; }
+.doc-actions > div:nth-child(2) { justify-content:center; }
+.doc-actions > div:nth-child(3) { justify-content:flex-end; }
+
+@media (max-width: 980px) {
+    .workspace-row { flex-direction: column; }
+    .file-row { flex-direction: column; align-items:stretch; gap:8px; }
+    .file-row label { min-width: 0; }
+    .doc-actions { justify-content: center; gap:12px; grid-template-columns: 1fr 1fr 1fr; }
+    .doc-actions > div > button { height:auto; min-height: 44px; }
+}
+
+/* Верхняя панель вкладок на всю ширину страницы */
+.top-tabs { width:100%; background:#ffffff; box-shadow: 0 2px 8px rgba(15,23,42,0.06); border-bottom: 1px solid #eef2f7; position:fixed; top:0; left:0; right:0; z-index:50; }
+.top-tabs .top-tabs-inner { max-width: 1400px; margin: 0 auto; padding: 12px 18px; display:flex; align-items:center; justify-content:space-between; }
+.top-tab-bar { display:flex; gap:12px; list-style:none; margin:0; padding:0; align-items:center; }
+.top-tab-item { padding:10px 16px; border-radius:8px; cursor:pointer; background:transparent; color:#374151; border:1px solid transparent; }
+.top-tab-item.active { background:linear-gradient(90deg,#eef2ff,#f6f9ff); border-color: #dbe8ff; color:#0f172a; font-weight:600; box-shadow: 0 4px 12px rgba(14,58,255,0.04); }
+.top-tab-content { margin-left: 12px; padding: 6px 0; color:#475569; }
+
+/* User info on the right */
+.top-user-info { display:flex; gap:8px; align-items:center; margin-left:auto; }
+.user-avatar { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#eef2ff,#dbeafe); color:#0f172a; font-weight:700; border:1px solid #c7ddff; box-shadow: 0 6px 16px rgba(14,58,255,0.03); }
+.user-name { font-size:13px; color:#0f172a; font-weight:600; }
+.top-tab-pane { display:none; }
+.top-tab-pane[style*="display:block"] { display:block; }
+
+@media (max-width: 980px) {
+    .top-tabs .top-tabs-inner { padding: 8px; }
+    .top-tab-bar { gap: 8px; }
+    .top-user-info { display:none; }
+}
+
+/* Make page content not hidden behind fixed top bar */
+body { padding-top: 66px; }
+
+/* Increase the preview area for better reading */
+.preview-iframe { height: 700px; }
+/* Add spacing above the preview area so it's not tight against file controls */
+#docPreview { margin-top: 14px; }
+.doc-view #docViewContainer { min-height: 700px; }
+.doc-view #docViewContainer pre { max-width: 100%; }
+
+/* workflow column visuals */
+.doc-workflow { min-width: 320px; }
+
+.workflow-panel { width: 360px; background: #ffffff; padding: 18px; box-sizing: border-box; border-radius: 12px; box-shadow: 0 8px 20px rgba(43,72,101,0.06); border: 1px solid rgba(43,72,101,0.06); position: sticky; top: 12px; }
+.workflow-panel h3 { margin-top: 0; }
+
+
+
+/* Summary block centered at bottom */
+/* removed center summary styles; no longer used */
+
+#workflowDetails button { margin-right: 8px; padding: 6px 12px; border-radius:6px; border: none; cursor:pointer; }
+#workflowDetails button:nth-child(1) { background: #10b981; color:#fff; }
+#workflowDetails button:nth-child(2) { background: #ef4444; color:#fff; }
 /* Встроенная иконка копирования внутри поля */
 .input-with-copy { position: relative; display: block; }
 .input-with-copy input { width: 100%; padding-right: 44px; box-sizing: border-box; }
@@ -200,4 +329,37 @@ button:hover {
 }
 
 #keyArea button:hover, #generateKeyButton:hover { background-color: #0056b3; }
+
+/* Custom file picker & small buttons */
+.file-step { display:flex; align-items:center; gap:8px; }
+.step-badge { width:26px; height:26px; border-radius:26px; display:inline-flex; align-items:center; justify-content:center; background:#eef2ff; color:#0f172a; font-weight:700; font-size:13px; border:1px solid #dbe8ff; }
+.step-badge.step-small { width:20px; height:20px; border-radius:20px; font-size:12px; }
+.file-label { font-size:13px; color:#334155; font-weight:600; }
+.file-select { display:flex; align-items:center; gap:8px; }
+.file-name { color:#6b7280; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px; }
+.btn-small { width:auto; padding:6px 10px; font-size:13px; border-radius:8px; border:1px solid rgba(16,24,40,0.06); background:#f8fafc; color:#111827; cursor:pointer; }
+.btn-small:hover { background:#eef2ff; }
+.btn-small.primary { background:#0ea5e9; color:#ffffff; border-color:#7dd3fc; }
+.btn-small.primary:hover { background:#06b6d4; }
+
+/* Signature box styles */
+.signature-box { display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid #ddd; padding:8px; border-radius:6px; background:#fbfbfc; }
+.signature-date { font-family: monospace; color:#0f172a; }
+.signature-copy-btn { margin-left:8px; }
+
+@media (max-width: 980px) {
+    .file-name { max-width: 100%; }
+    .file-row { flex-direction: column; align-items: stretch; }
+    .file-step { margin-bottom: 6px; }
+    .file-select { width:100%; }
+}
+/* Preview specific styles */
+.preview-img { max-width: 100%; height: auto; display:block; margin: 8px auto; border-radius: 8px; }
+.preview-iframe { width:100%; height:480px; border-radius: 8px; box-shadow: 0 6px 20px rgba(2,6,23,0.06); }
+.doc-actions { width:100%; display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; align-items:center; }
+.doc-actions pre { margin: 0; }
+.doc-actions a { color: #0369a1; }
+.preview-html { font-size: 15px; color: #0f172a; line-height: 1.5; }
+.preview-content-default { color: #475569; font-style: italic; }
+.preview-pre { font-family: monospace; color: #111827; background: #fbfcfd; padding: 10px; border-radius: 6px; border: 1px solid #e6eef8; }
 

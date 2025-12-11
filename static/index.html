@@ -1,265 +1,757 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/static/index.css">
-    <title>Шифрование документа</title>
-    
+    <!-- Mammoth.js (преобразует DOCX в HTML в браузере). Атрибут целостности опущен, чтобы избежать проблем при рассинхронизации версий; пробуем загрузку с нескольких CDN. -->
+    <script id="mammothScript" src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.14/mammoth.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+    // Попытаться загрузить с альтернативных CDN, если mammoth не загрузился (некоторые браузеры блокируют из-за несовпадения integrity).
+    (function(){
+        function loadScript(url, onload, onerror) {
+            var s = document.createElement('script');
+            s.src = url; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer';
+            s.onload = onload; s.onerror = onerror; document.head.appendChild(s);
+        }
+        function ensureLoaded(urls, i) {
+            i = i || 0; if (window.mammoth) { console.debug('mammoth loaded already'); return; }
+            if (i >= urls.length) { console.warn('mammoth.js could not be loaded from any CDN'); return; }
+            console.debug('Attempting to load mammoth from', urls[i]);
+            loadScript(urls[i], function(){ console.debug('Loaded mammoth from', urls[i]); }, function(){ ensureLoaded(urls, i+1); });
+        }
+        // Если начальный скрипт не определил window.mammoth после микротаска — пробуем альтернативные CDN
+        setTimeout(function(){ if (!window.mammoth) {
+            ensureLoaded([
+                'https://cdn.jsdelivr.net/npm/mammoth@1.4.14/dist/mammoth.browser.min.js',
+                'https://unpkg.com/mammoth@1.4.14/dist/mammoth.browser.min.js'
+            ]);
+        } else {
+            console.debug('mammoth available from primary CDN');
+        } }, 50);
+    })();
+    </script>
+    <title>Инструмент — Пустая страница</title>
 </head>
-
 <body>
-    <body>
+    <div id="scriptError" class="script-error" style="display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); background:#fee2e2; color:#991b1b; border:1px solid #fecaca; padding:10px 12px; border-radius:8px; z-index:9999; box-shadow: 0 8px 20px rgba(0,0,0,0.06); font-weight:600;">
+        Скрипт: ошибка выполнения (откройте консоль для подробностей)
+    </div>
+    <!-- Верхняя панель вкладок на всю ширину страницы: "Работа с файлами / Схема учета / Формы учета" -->
+    <div class="top-tabs" role="navigation">
+        <div class="top-tabs-inner container">
+            <ul class="top-tab-bar" role="tablist">
+                <li class="top-tab-item active" data-tab="top-files" role="tab">Работа с файлами</li>
+                <li class="top-tab-item" data-href="/static/workflow.html" role="tab">Схема учета</li>
+                <li class="top-tab-item" data-href="/static/forms.html" role="tab">Формы учета</li>
+            </ul>
+            <div class="top-user-info" aria-hidden="true">
+                <div class="user-avatar" title="Пользователь">A</div>
+                <div class="user-name">Александр</div>
+            </div>
+            <div class="top-tab-content">
+                <div id="top-files" class="top-tab-pane" style="display:block;"></div>
+                <div id="top-workflow" class="top-tab-pane" style="display:none;"></div>
+                <div id="top-forms" class="top-tab-pane" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="main-wrapper">
         <aside class="sidebar">
             <h2>Режимы работы программы</h2>
-            <button class="cipher-btn active" onclick="selectMode(this, 'kuznechik')">Кузнечик (симм.)</button>
-            <button class="cipher-btn" onclick="selectMode(this, 'rsa')">RSA (асимм.)</button>
-            <button class="cipher-btn" onclick="selectMode(this, 'elgamal')">ElGamal (асимм.)</button>
-            <button class="cipher-btn" onclick="selectMode(this, 'hash')">Хеширование</button>
-            <button class="cipher-btn" onclick="selectMode(this, 'sign')">Выработка ЭЦП</button>
-            <button class="cipher-btn" onclick="selectMode(this, 'keygen')">Генерация ключей</button>
+            <button class="cipher-btn" data-mode="kuznechik">Кузнечик (симм.)</button>
+            <button class="cipher-btn" data-mode="hash">Хеширование</button>
+            <button class="cipher-btn" data-mode="sign">Выработка ЭЦП</button>
+            <button class="cipher-btn" data-mode="keygen">Генерация ключей</button>
         </aside>
 
         <div class="main-content">
-            <div class="container">
-                <h1>Шифрование документа</h1>
-                <p>Загрузите файл для обработки (поддерживаемые форматы: .txt, .docx, .pdf и т.д.)</p>
+                <div class="container">
+                    <div id="workspace" style="min-height:420px; display:flex; align-items:flex-start; justify-content:center; border:1px dashed #e5e7eb; border-radius:8px; background: #fff; padding:18px;">
+                        <div id="modeContent" style="width:100%;">
+                            <!-- Область описания режима (небольшая) -->
+                            <div id="modeDescription" class="mode-description" style="margin-bottom:8px;">Описание режима</div>
+                            <!-- Убрано отображение "Выбран режим" по просьбе UX (элемент не нужен) -->
 
-                <!-- ЕДИНСТВЕННОЕ ПОЛЕ ЗАГРУЗКИ ФАЙЛА -->
-                <div class="upload-section">
-                    <label for="commonFileInput"><strong>Файл:</strong></label>
-                    <input type="file" id="commonFileInput" accept=".txt,.docx,.pdf,.zip,.json,.xml">
-                    <p id="fileNameDisplay" style="margin-top: 5px; font-size: 0.9em; color: #666;">Файл не выбран</p>
-                </div>
+                            <!-- Строка выбора файла: input + кнопка загрузки в одной линии -->
+                            <div id="workspaceControls" class="workspace-row" style="display:flex; flex-direction:column; gap:12px; align-items:stretch;">
+                                <div id="kuzControls">
+                                <!-- Режим "Кузнечик": переключатель Зашифровать/Расшифровать -->
+                                <div class="kuz-mode-toggle" style="display:flex; gap:8px; margin-bottom:8px;">
+                                    <button id="kuzModeEncryptBtn" class="btn-small primary" type="button">Зашифровать</button>
+                                    <button id="kuzModeDecryptBtn" class="btn-small" type="button">Расшифровать</button>
+                                </div>
 
-                <p id="selectedModeDisplay">Выбран режим: <strong id="selectedModeName">Кузнечик (симм.)</strong></p>
+                                <!-- Подпанели Кузнечика: зашифровать (по умолчанию) и расшифровать -->
+                                <div id="kuzEncryptPanel" style="display:block; margin-bottom:8px;">
+                                    <!-- Действие шифрования доступно в глобальной панели действий (`doc-actions`) (центральная кнопка) -->
+                                </div>
+                                <div id="kuzDecryptPanel" style="display:none; margin-bottom:8px; gap:8px;">
+                                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                                        <input id="kuzDecryptFileInput" type="file" accept="*/*" style="display:none;" />
+                                        <button id="kuzDecryptChooseBtn" class="btn-small" type="button">Загрузить документ</button>
+                                        <span id="kuzDecryptSelectedFile" style="color:#475569;">Файл не выбран</span>
+                                    </div>
+                                    <div style="display:flex; gap:8px; align-items:center;">
+                                        <div style="display:flex; gap:8px; width:100%;">
+                                            <button id="kuzDecryptBottomClearBtn" class="btn-small" type="button" style="flex:1;">Очистить</button>
+                                            <button id="kuzDecryptActionDownloadBtn" class="btn-small primary" type="button" style="flex:1;" disabled>Расшифровать и скачать</button>
+                                        </div>
+                                    </div>
+                                    <div id="kuzDecryptOutput" style="display:none; margin-top:8px; background:#fbfbfc; padding:8px; border-radius:6px; border:1px solid #e6eef8;">
+                                        <h4 style="margin:0 0 6px 0;">Результат расшифровки:</h4>
+                                        <pre id="kuzDecryptText" style="white-space:pre-wrap; word-break:break-all; margin:0;"></pre>
+                                    </div>
+                                </div>
+                                <div id="globalFileRow" class="file-row" style="display:flex; gap:10px; align-items:center;">
+                                    <div class="file-step" style="display:flex; align-items:center; gap:8px; min-width:140px;">
+                                        <span class="step-badge">1</span>
+                                        <label class="file-label">Выберите файл</label>
+                                    </div>
+                                    <div class="file-select" style="display:flex; gap:8px; align-items:center; flex:1;">
+                                        <input id="workspaceFileInput" type="file" accept=".txt,.json,.md,.docx,.pdf,.png,.jpg,.jpeg,.bmp,.doc" style="display:none;" />
+                                        <button id="customFileBtn" type="button" class="btn-small">Выбрать</button>
+                                        <span id="selectedFileName" class="file-name">Файл не выбран</span>
+                                        <p id="fileNameDisplay" style="margin:0; color:#475569; font-size:13px;">Файл не выбран</p>
+                                    </div>
+                                    <div class="upload-step" style="display:flex; align-items:center; gap:8px;">
+                                        <span class="step-badge step-small">2</span>
+                                        <button id="workspaceUploadBtn" class="btn-small primary" type="button">Загрузить документ</button>
+                                    </div>
+                                </div>
 
-                <!-- БЛОК ХЭШИРОВАНИЯ -->
-                <div id="hashBlock" class="mode-block" style="display:none; margin-top:30px;">
-                    <button type="button" id="hashButton" onclick="sendHash()">Посчитать хэш</button>
-                    <div id="hashResult" style="margin-top:20px; display:none;">
-                        <h2>Хэш файла (Стрибог-512):</h2>
-                        <p id="hashValue" style="font-weight:bold; word-break: break-all;"></p>
-                    </div>
-                </div>
+                                <!-- Предпросмотр документа следует ниже строки выбора файла -->
+                                <div id="mammothNotice" style="display:none; margin-bottom:8px; color:#92400e; background:#fff7ed; border:1px solid #ffd8a8; padding:8px; border-radius:6px; font-size:13px;">Предпросмотр DOCX может быть недоступен — библиотека конвертации не загружена.</div>
+                                <div id="docPreview" style="border:1px solid #ddd; padding:12px; border-radius:8px; min-height:260px; background:#fff; overflow:auto;">
+                                    <div id="docPreviewContent" style="min-height:160px;">Здесь появится содержимое документа</div>
+                                </div>
 
-                <!-- Заглушка для остальных блоков (можно добавить позже) -->
-                <div id="rsaBlock" class="mode-block" style="display:none;">[RSA: форма будет здесь]</div>
-                <div id="elgamalBlock" class="mode-block" style="display:none;">[ElGamal: форма будет здесь]</div>
-                <div id="signBlock" class="mode-block" style="display:none;">[ЭЦП: форма будет здесь]</div>
-                <div id="keygenBlock" class="mode-block" style="display:none; margin-top:20px;">
-                    <h2>Генерация ключей</h2>
-                    <p id="keygenDescription">На этой странице можно сгенерировать новый секретный ключ локально в браузере. Нажмите кнопку "Сгенерировать" — затем появится поле с ключом и кнопки для копирования/скачивания.</p>
-                    <div class="keygen-controls" style="margin-top:12px;">
-                        <button id="generateKeyButton" type="button">Сгенерировать ключ</button>
-                        <div id="keyArea" style="display:none; margin-top:12px;">
-                            <div class="input-with-copy">
-                                <input id="generatedKeyInput" readonly placeholder="Ключ появится здесь..." />
-                                <button id="copyKeyIcon" type="button" class="copy-icon" title="Копировать"></button>
+                                <!-- Кнопки под превью: слева/по центру/справа -->
+                                <div class="doc-actions" style="margin-top:6px;">
+                                    <div><button id="workspaceClearBtn" type="button">Очистить</button></div>
+                                    <div><button id="workspaceEncryptBtn" type="button">Зашифровать и скачать</button></div>
+                                    <div><button id="workspaceSendBtn" type="button">Отправить на прохождение учёта</button></div>
+                                </div>
+                                </div>
+                                <!-- Контролы режима подписи (по умолчанию скрыты) -->
+                                <div id="signControls" style="display:none; flex-direction:column; gap:8px; margin-top:12px;">
+                                    <div class="file-row" style="display:flex; gap:10px; align-items:center;">
+                                        <div class="file-step" style="display:flex; align-items:center; gap:8px; min-width:140px;">
+                                            <span class="step-badge">1</span>
+                                            <label class="file-label">Загрузите документ</label>
+                                        </div>
+                                        <div class="file-select" style="display:flex; gap:8px; align-items:center; flex:1;">
+                                            <button id="signFileBtn" type="button" class="btn-small">Загрузить документ</button>
+                                            <span id="signSelectedFileName" class="file-name">Файл не выбран</span>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; gap:8px; align-items:center; justify-content:flex-start;">
+                                        <button id="signGenerateBtn" class="btn-small primary" type="button" disabled>Сформировать подпись</button>
+                                    </div>
+                                    <div id="signatureBox" style="display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid #ddd; padding:8px; border-radius:6px; background:#fbfbfc;">
+                                        <div id="signatureDate" style="font-family:monospace; color:#0f172a;">—</div>
+                                        <button id="signatureCopyBtn" class="btn-small" type="button" aria-label="Копировать дату подписи">Копировать</button>
+                                    </div>
+                                </div>
+                                <!-- Контролы режима хеширования (по умолчанию скрыты) -->
+                                <div id="hashBlock" style="display:none; flex-direction:column; gap:8px; margin-top:12px;">
+                                    <h2 style="margin:0 0 6px 0;">Хеширование</h2>
+                                    <div class="file-row" style="display:flex; gap:8px; align-items:center;">
+                                        <div class="file-step" style="display:flex; align-items:center; gap:8px; min-width:140px;">
+                                            <span class="step-badge">1</span>
+                                            <label class="file-label">Выберите файл</label>
+                                        </div>
+                                        <div class="file-select" style="display:flex; gap:8px; align-items:center; flex:1;">
+                                            <button id="hashChooseBtn" type="button" class="btn-small">Выбрать</button>
+                                            <span id="hashSelectedFileName" class="file-name">Файл не выбран</span>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; gap:8px; align-items:center;">
+                                        <button id="hashButton" class="btn-small" type="button">Посчитать хэш</button>
+                                    </div>
+                                    <div id="hashResult" style="display:none; margin-top:8px; background:#fbfbfc; border:1px solid #e6eef8; padding:8px; border-radius:6px;">
+                                        <h3 style="margin:0 0 4px 0;">Хэш файла (Стрибог-512):</h3>
+                                        <div style="display:flex; gap:8px; align-items:flex-start;">
+                                            <pre id="hashValue" style="font-family:monospace; margin:0; white-space:pre-wrap; word-break:break-all; flex:1;"></pre>
+                                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                                <button id="hashCopyBtn" type="button" class="btn-small" title="Копировать хеш">Копировать</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Контролы генерации ключей (по умолчанию скрыты) -->
+                                <div id="keygenBlock" style="display:none; flex-direction:column; gap:8px; margin-top:12px;">
+                                    <div style="display:flex; gap:8px; align-items:center;">
+                                        <button id="generateKeyButton" class="btn-small primary" type="button">Сгенерировать ключ</button>
+                                    </div>
+                                    <div id="keyArea" style="display:none; margin-top:10px;">
+                                        <div style="display:flex; gap:8px; align-items:center;">
+                                            <input id="generatedKeyInput" readonly style="flex:1; padding:8px; border-radius:6px; border:1px solid #e6eef8; background:#fff; font-family: monospace;" placeholder="Ключ появится здесь..." />
+                                            <button id="copyKeyIcon" type="button" class="btn-small" title="Копировать">📋</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- КНОПКА "ШИФРОВАТЬ" для симметричных режимов -->
-                <button id="encryptButton" style="display:none; margin-top:20px;">Зашифровать</button>
             </div>
         </div>
-    </div> <!-- .main-wrapper -->
-
-
-
+    </div>
     <script>
+    // Глобальный перехватчик ошибок — показывает понятное сообщение на странице (удобно для неразработчиков)
+    window.addEventListener('error', function (e) {
+        try { const banner = document.getElementById('scriptError'); if (banner) { banner.style.display = 'block'; banner.textContent = 'Ошибка: ' + (e && e.message ? e.message : 'Unknown error'); } } catch (x) {}
+        console.error('Global error', e);
+    });
+    window.addEventListener('unhandledrejection', function (ev) { try { const banner = document.getElementById('scriptError'); if (banner) { banner.style.display = 'block'; banner.textContent = 'Unhandled Promise rejection: ' + (ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason)); } } catch (x){}; console.error('Unhandled promise rejection', ev); });
+    // Поведение верхних вкладок
+    document.addEventListener('DOMContentLoaded', function() {
+        console.debug('Top tabs DOMContentLoaded');
+        const items = document.querySelectorAll('.top-tab-item');
+        items.forEach(it => it.addEventListener('click', function() {
+            // Если у вкладки есть атрибут data-href — перейти по указанному адресу
+            const href = this.getAttribute('data-href');
+            if (href) { window.location.href = href; return; }
+            items.forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+            const target = this.getAttribute('data-tab');
+            document.querySelectorAll('.top-tab-pane').forEach(p => p.style.display = 'none');
+            const pane = document.getElementById(target);
+            if (pane) pane.style.display = 'block';    
+        }));
 
-        // Отображаем имя выбранного файла
-        document.getElementById('commonFileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const display = document.getElementById('fileNameDisplay');
-            if (file) {
-                display.textContent = `Выбран: ${file.name} (${(file.size / 1024).toFixed(1)} КБ)`;
+        // Устанавливаем начальную активную вкладку в зависимости от пути URL
+        function setActiveTopTabByPath() {
+            const path = window.location.pathname || '/';
+            if (path.endsWith('/static/workflow.html')) {
+                    const el = document.querySelector('.top-tab-item[data-href="/static/workflow.html"]'); if (el) el.classList.add('active');
+                } else if (path.endsWith('/static/forms.html')) {
+                    const el = document.querySelector('.top-tab-item[data-href="/static/forms.html"]'); if (el) el.classList.add('active');
             } else {
-                display.textContent = 'Файл не выбран';
+                // индекс по умолчанию
+                const el = document.querySelector('.top-tab-item[data-tab="top-files"]'); if (el) el.classList.add('active');
             }
+        }
+        setActiveTopTabByPath();
+    });
+
+    // Выбор режима и взаимодействие с рабочей областью
+    document.addEventListener('DOMContentLoaded', function() {
+        console.debug('Workspace DOMContentLoaded');
+        // Показать небольшое уведомление, если mammoth не доступен при загрузке
+        try { if (mammothNotice) mammothNotice.style.display = (window.mammoth ? 'none' : 'block'); } catch (x) {}
+    (function() {
+        const leftBtns = document.querySelectorAll('.cipher-btn');
+        const desc = document.getElementById('modeDescription');
+        const previewContent = document.getElementById('docPreviewContent');
+        const fileInput = document.getElementById('workspaceFileInput');
+        const customFileBtn = document.getElementById('customFileBtn');
+        const selectedFileName = document.getElementById('selectedFileName');
+        const uploadBtn = document.getElementById('workspaceUploadBtn');
+        const clearBtn = document.getElementById('workspaceClearBtn');
+        const encryptBtn = document.getElementById('workspaceEncryptBtn');
+        const sendBtn = document.getElementById('workspaceSendBtn');
+        const workspaceControls = document.getElementById('workspaceControls');
+        const mammothNotice = document.getElementById('mammothNotice');
+        const signControls = document.getElementById('signControls');
+        const kuzControls = document.getElementById('kuzControls');
+        const kuzModeEncryptBtn = document.getElementById('kuzModeEncryptBtn');
+        const kuzModeDecryptBtn = document.getElementById('kuzModeDecryptBtn');
+        const kuzEncryptPanel = document.getElementById('kuzEncryptPanel');
+        const kuzDecryptPanel = document.getElementById('kuzDecryptPanel');
+        const kuzDecryptChooseBtn = document.getElementById('kuzDecryptChooseBtn');
+        const kuzDecryptFileInput = document.getElementById('kuzDecryptFileInput');
+        const kuzDecryptSelectedFile = document.getElementById('kuzDecryptSelectedFile');
+        const kuzDecryptBottomClearBtn = document.getElementById('kuzDecryptBottomClearBtn');
+        const kuzDecryptActionDownloadBtn = document.getElementById('kuzDecryptActionDownloadBtn');
+        const kuzDecryptOutput = document.getElementById('kuzDecryptOutput');
+        const kuzDecryptText = document.getElementById('kuzDecryptText');
+        
+        const signFileBtn = document.getElementById('signFileBtn');
+        const signSelectedFileName = document.getElementById('signSelectedFileName');
+        const signGenerateBtn = document.getElementById('signGenerateBtn');
+        const signatureDate = document.getElementById('signatureDate');
+        const signatureCopyBtn = document.getElementById('signatureCopyBtn');
+        // Поле selectedModeName удалено — больше не отображаем 'Выбран режим'
+        const hashBlock = document.getElementById('hashBlock');
+        const hashButton = document.getElementById('hashButton');
+        const hashChooseBtn = document.getElementById('hashChooseBtn');
+        const hashSelectedFileName = document.getElementById('hashSelectedFileName');
+        const hashResult = document.getElementById('hashResult');
+        const hashValue = document.getElementById('hashValue');
+        const keygenBlock = document.getElementById('keygenBlock');
+        const generateKeyButton = document.getElementById('generateKeyButton');
+        const keyArea = document.getElementById('keyArea');
+        const generatedKeyInput = document.getElementById('generatedKeyInput');
+        const copyKeyIcon = document.getElementById('copyKeyIcon');
+        const hashCopyBtn = document.getElementById('hashCopyBtn');
+
+        const descMap = {
+            kuznechik: 'Кузнечик — отечественный блочный симметрический алгоритм шифрования (ГОСТ). В этом режиме вы можете зашифровать локальный документ, получить зашифрованный файл для передачи или скачать его для хранения. Использование шифрования помогает защитить конфиденциальность данных, однако важно надёжно хранить секретный ключ и помнить алгоритмы восстановления доступа.',
+            hash: 'Хеширование — вычисление цифрового отпечатка (фиксированного размера) файла, например с помощью алгоритма Стрибог. Хеш позволяет проверить целостность документа и быстро сравнивать версии без передачи содержимого; часто используется для контроля неизменности и аудита. Если хеш совпадает — файл не изменялся, если отличается — может свидетельствовать об изменениях или повреждении.',
+            sign: 'Выработка ЭЦП — создание электронной подписи, подтверждающей авторство и целостность документа. Подпись генерируется с использованием вашего приватного ключа и позволяет другим сторонам проверить, что документ не был изменён после подписания. Подписанный документ можно отправлять на учёт или хранить с отметкой о подписи — при этом безопасность подписи зависит от надёжности хранения приватного ключа.',
+            keygen: 'Генерация ключей — создание криптографических ключей локально в браузере: симметричных ключей для шифрования или пары «публичный/приватный» для подписи. Сгенерированные ключи следует экспортировать и хранить в безопасном месте; потеря приватного ключа приведёт к утрате возможности расшифровывать или подписывать документы. Используйте этот режим, чтобы подготовить ключи для дальнейшей работы в других режимах (шифрование, подпись, проверка).'
+        };
+
+        // modeNameMap удалён — больше не нужен
+
+        let currentMode = null;
+        let currentContent = '';
+        let currentBlobUrl = null;
+
+        function setMode(mode, btnEl) {
+            currentMode = mode;
+            console.debug('setMode called', mode);
+            // Подсветить кнопки в левой панели
+            leftBtns.forEach(b => b.classList.toggle('active', b === btnEl));
+            // Обновить описание режима и связанные элементы интерфейса
+            if (desc) { desc.textContent = descMap[mode] || ''; desc.style.display = 'block'; }
+            // Элемент с текстом выбранного режима не отображается — пропускаем
+            // Переключение контролов: рабочая область включает превью и элементы для каждого режима
+            if (workspaceControls) workspaceControls.style.display = (mode === 'kuznechik' || mode === 'sign' || mode === 'hash' || mode === 'keygen') ? 'flex' : 'none';
+            if (kuzControls) kuzControls.style.display = (mode === 'kuznechik') ? 'block' : 'none';
+            if (signControls) signControls.style.display = (mode === 'sign') ? 'flex' : 'none';
+            if (hashBlock) hashBlock.style.display = (mode === 'hash') ? 'flex' : 'none';
+            if (keygenBlock) keygenBlock.style.display = (mode === 'keygen') ? 'flex' : 'none';
+            // When entering Kuznechik, default to Encrypt panel and ensure global encrypt button is visible in doc-actions
+            if (mode === 'kuznechik') {
+                if (kuzModeEncryptBtn) kuzModeEncryptBtn.classList.add('primary');
+                if (kuzModeDecryptBtn) kuzModeDecryptBtn.classList.remove('primary');
+                if (kuzEncryptPanel) kuzEncryptPanel.style.display = 'block';
+                if (kuzDecryptPanel) kuzDecryptPanel.style.display = 'none';
+                if (encryptBtn) encryptBtn.style.display = '';
+                try { const gf = document.getElementById('globalFileRow'); if (gf) gf.style.display = 'flex'; } catch (e) {}
+            } else {
+                if (encryptBtn) encryptBtn.style.display = '';
+            }
+            if (mode === 'sign') {
+                try { if (signControls) { signControls.scrollIntoView({ behavior: 'smooth', block: 'center' }); } if (signFileBtn) { signFileBtn.focus(); } } catch (e) { console.debug('scroll/focus failed', e); }
+            }
+            // Переключить верхнюю вкладку на работу с файлами при выборе режима Кузнечик
+            if (mode === 'kuznechik') {
+                const t = document.querySelector('.top-tab-item[data-tab="top-files"]'); if (t) t.click();
+            }
+            // Сброс превью при входе в режим
+            if (previewContent) previewContent.textContent = 'Здесь появится содержимое документа'; currentContent = '';
+            clearExistingBlob();
+            if (mammothNotice) mammothNotice.style.display = (window.mammoth ? 'none' : 'block');
+            if (fileInput) fileInput.value = null;
+            if (selectedFileName) selectedFileName.textContent = 'Файл не выбран';
+            const fnDisplay = document.getElementById('fileNameDisplay'); if (fnDisplay) fnDisplay.textContent = 'Файл не выбран';
+            if (signSelectedFileName) signSelectedFileName.textContent = 'Файл не выбран';
+            if (signatureDate) signatureDate.textContent = '—';
+            // Reset hash and keygen UI
+            if (hashResult) { hashResult.style.display = 'none'; }
+            if (hashValue) { hashValue.textContent = ''; hashValue.style.color = ''; }
+            if (generatedKeyInput) { generatedKeyInput.value = ''; }
+            if (keyArea) { keyArea.style.display = 'none'; }
+        }
+
+        // Ensure initial disabled/enabled states
+        try { if (hashButton) hashButton.disabled = true; } catch(x){}
+
+        leftBtns.forEach(b => {
+            b.addEventListener('click', () => { console.debug('left button clicked', b.dataset.mode); setMode(b.dataset.mode, b); });
         });
 
-        function selectMode(btn, mode) {
-            document.querySelectorAll('.cipher-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        // По умолчанию выбираем первый режим — быть толерантнее, если список кнопок пуст
+        if (leftBtns && leftBtns.length) {
+            setMode(leftBtns[0].dataset.mode || 'kuznechik', leftBtns[0]);
+        } else {
+            console.warn('No mode buttons found, defaulting to kuznechik but no UI for it');
+            setMode('kuznechik', null);
+        }
 
-            // Обновляем скрытый input
-            const input = document.getElementById('modeInput');
-            if (input) input.value = mode;
-
-            const nameMap = {
-                kuznechik: 'Кузнечик (симм.)',
-                rsa: 'RSA (асимм.)',
-                elgamal: 'ElGamal (асимм.)',
-                hash: 'Хеширование',
-                sign: 'Выработка ЭЦП',
-                keygen: 'Генерация ключей'
+        // Глобальная кнопка "Выбрать": открыть диалог выбора файла и обновить отображаемое имя (используется в нескольких режимах)
+        if (customFileBtn && fileInput) customFileBtn.addEventListener('click', () => { console.debug('customFileBtn clicked'); fileInput.click(); });
+        if (fileInput) fileInput.addEventListener('change', () => {
+            const f = fileInput.files && fileInput.files[0];
+            console.debug('file selected', f && f.name);
+            const fmt = (size) => {
+                if (!size && size !== 0) return '';
+                if (size < 1024) return `${size} Б`;
+                const kb = size / 1024; if (kb < 1024) return `${kb.toFixed(1)} КБ`;
+                const mb = kb / 1024; return `${mb.toFixed(2)} МБ`;
             };
+            const displayText = f ? `Выбран: ${f.name} (${fmt(f.size)})` : 'Файл не выбран';
+            if (selectedFileName) selectedFileName.textContent = displayText;
+            if (signSelectedFileName) signSelectedFileName.textContent = displayText;
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            if (fileNameDisplay) fileNameDisplay.textContent = displayText;
+            if (signGenerateBtn) signGenerateBtn.disabled = !f;
+            if (hashButton) hashButton.disabled = !f;
+            if (hashSelectedFileName) hashSelectedFileName.textContent = displayText;
+            if (hashButton) hashButton.disabled = !f;
+        });
+        // Обратная совместимость: поддержка старого элемента `commonFileInput`
+        const commonFileEl = document.getElementById('commonFileInput');
+        if (commonFileEl) {
+            commonFileEl.addEventListener('change', (ev) => {
+                const f = ev.target.files && ev.target.files[0];
+                const fmt = (size) => { if (!size && size !== 0) return ''; if (size < 1024) return `${size} Б`; const kb = size / 1024; if (kb < 1024) return `${kb.toFixed(1)} КБ`; const mb = kb / 1024; return `${mb.toFixed(2)} МБ`; };
+                const displayText = f ? `Выбран: ${f.name} (${fmt(f.size)})` : 'Файл не выбран';
+                if (selectedFileName) selectedFileName.textContent = displayText;
+                if (signSelectedFileName) signSelectedFileName.textContent = displayText;
+                const fnd = document.getElementById('fileNameDisplay'); if (fnd) fnd.textContent = displayText;
+                if (signGenerateBtn) signGenerateBtn.disabled = !f;
+                if (hashButton) hashButton.disabled = !f;
+                // Also propagate file to workspace input so preview works if desired
+                try { if (fileInput) { fileInput.files = ev.target.files; } } catch(e) { /* не во всех браузерах допускается программно устанавливать file input */ }
+            });
+        }
+        // Кнопка в режиме подписи открывает тот же диалог выбора файла
+        if (signFileBtn && fileInput) signFileBtn.addEventListener('click', () => { console.debug('signFileBtn clicked'); fileInput.click(); });
+        // Hash choose button opens the same workspace file dialog
+        if (hashChooseBtn && fileInput) hashChooseBtn.addEventListener('click', () => { console.debug('hashChooseBtn clicked'); fileInput.click(); });
 
-            document.getElementById('selectedModeName').textContent = nameMap[mode] || mode;
+        // Режим хеширования: вычисление хеша на сервере
+        if (hashButton) hashButton.addEventListener('click', () => { console.debug('hashButton clicked'); sendHash(); });
+        if (hashCopyBtn) hashCopyBtn.addEventListener('click', async () => {
+            if (!hashValue || !hashValue.textContent) return;
+            try { await navigator.clipboard.writeText(hashValue.textContent.replace(/\s+/g, '')); alert('Хеш скопирован в буфер обмена'); }
+            catch (e) { try { const ta = document.createElement('textarea'); ta.value = hashValue.textContent.replace(/\s+/g, ''); document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); alert('Хеш скопирован (fallback)'); } catch (ex) { alert('Не удалось скопировать хеш'); } }
+        });
 
-            const blocks = {
-                hash: document.getElementById("hashBlock"),
-                rsa: document.getElementById("rsaBlock"),
-                elgamal: document.getElementById("elgamalBlock"),
-                sign: document.getElementById("signBlock"),
-                keygen: document.getElementById("keygenBlock")
-            };
+        // Режим генерации ключа: сгенерировать локальный ключ и скопировать
+        if (generateKeyButton) generateKeyButton.addEventListener('click', () => {
+            const key = generateKeyLocal(64);
+            showKeyOnUI(key);
+        });
+        if (copyKeyIcon) {
+            copyKeyIcon.addEventListener('click', async () => {
+                if (!generatedKeyInput || !generatedKeyInput.value) return;
+                try { await navigator.clipboard.writeText(generatedKeyInput.value); alert('Ключ скопирован в буфер обмена'); }
+                catch (err) {
+                    try { generatedKeyInput.select(); document.execCommand('copy'); alert('Ключ скопирован (fallback)'); } catch (e) { console.error('copy failed', e); alert('Не удалось скопировать'); }
+                }
+            });
+        }
 
-            const encryptButton = document.getElementById("encryptButton");
-
-            // Скрываем все блоки
-            Object.values(blocks).forEach(b => { if (b) b.style.display = "none"; });
-            encryptButton.style.display = "none";
-
-            // Логика показа
-            if (mode === "kuznechik") {
-                encryptButton.style.display = "inline-block";
-            } 
-            else if (blocks[mode]) {
-                blocks[mode].style.display = "block";
+        // Вспомогательная функция: преобразовать ArrayBuffer в base64
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
             }
-            // Скрываем область загрузки файла при некоторых режимах
-            const uploadSection = document.querySelector('.upload-section');
-            if (mode === 'keygen') {
-                if (uploadSection) uploadSection.style.display = 'none';
-            } else {
-                if (uploadSection) uploadSection.style.display = '';
+            return btoa(binary);
+        }
+
+        function clearExistingBlob() {
+            if (currentBlobUrl) {
+                try { URL.revokeObjectURL(currentBlobUrl); } catch (e) {}
+                currentBlobUrl = null;
             }
         }
 
-        // При загрузке страницы
-        document.addEventListener('DOMContentLoaded', () => {
-            const input = document.getElementById('modeInput');
-            const value = input?.value || 'kuznechik';
+        function showPreviewForFile(file) {
+            if (!file || !previewContent) return;
+            clearExistingBlob();
+            const name = file.name || 'file';
+            const ext = (name.split('.').pop() || '').toLowerCase();
+            // Reset area
+            previewContent.innerHTML = '';
 
-            const btn = Array.from(document.querySelectorAll('.cipher-btn'))
-                .find(b => b.getAttribute('onclick')?.includes(`'${value}'`));
-
-            if (btn) btn.classList.add('active');
-
-            const map = {kuznechik:'Кузнечик (симм.)', rsa:'RSA (асимм.)', elgamal:'ElGamal (асимм.)', hash:'Хеширование', sign:'Выработка ЭЦП', keygen:'Генерация ключей'};
-            const display = document.getElementById('selectedModeName');
-            if (display) display.textContent = map[value] || value;
-
-            // Имитируем клик, чтобы показать правильную форму
-            if (btn) btn.click();
-        });
-
-        // Генерация и работа с ключом на стороне клиента
-        function generateKeyLocal(length = 64) {
-            // length = число hex-символов; 64 hex = 32 байта
-            const bytes = new Uint8Array(length / 2);
-            if (window.crypto && crypto.getRandomValues) {
-                crypto.getRandomValues(bytes);
-            } else {
-                // fallback: Math.random (не криптографически безопасно)
-                for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+            // Images
+            if (file.type && file.type.startsWith('image/')) {
+                const url = URL.createObjectURL(file);
+                currentBlobUrl = url;
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = name;
+                img.className = 'preview-img';
+                previewContent.appendChild(img);
+                // For encryption, store base64 of binary
+                const reader = new FileReader();
+                reader.onload = (e) => { currentContent = arrayBufferToBase64(e.target.result); };
+                reader.readAsArrayBuffer(file);
+                return;
             }
+
+            // PDF - display via iframe/object
+            if (ext === 'pdf' || file.type === 'application/pdf') {
+                const url = URL.createObjectURL(file);
+                currentBlobUrl = url;
+                const iframe = document.createElement('iframe');
+                iframe.src = url; iframe.className = 'preview-iframe'; iframe.style.width = '100%'; iframe.style.minHeight = '480px'; iframe.style.border = 'none';
+                previewContent.appendChild(iframe);
+                // Store binary as base64 for encryption
+                const reader = new FileReader(); reader.onload = (e) => { currentContent = arrayBufferToBase64(e.target.result); }; reader.readAsArrayBuffer(file);
+                return;
+            }
+
+            // DOCX - convert via mammoth if available
+            if (ext === 'docx') {
+                if (!window.mammoth) {
+                    const url = URL.createObjectURL(file);
+                    currentBlobUrl = url;
+                    previewContent.innerHTML = '<div>Для просмотра DOCX требуются дополнительные библиотеки. <a href="' + url + '" download="' + name + '">Скачать файл</a></div>';
+                    const reader = new FileReader(); reader.onload = (e) => { currentContent = arrayBufferToBase64(e.target.result); }; reader.readAsArrayBuffer(file);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const arrayBuffer = evt.target.result;
+                    window.mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+                        .then(function(result) {
+                            previewContent.innerHTML = result.value || '<div>Пустой документ</div>';
+                            // also set currentContent as base64 of binary
+                            currentContent = arrayBufferToBase64(arrayBuffer);
+                        }).catch(function(err){ previewContent.textContent = 'Ошибка конвертации docx: ' + (err && err.message); });
+                };
+                reader.readAsArrayBuffer(file);
+                return;
+            }
+
+            // DOC (binary) - no browser preview; show download link
+            if (ext === 'doc' || file.type === 'application/msword') {
+                const url = URL.createObjectURL(file);
+                currentBlobUrl = url;
+                const a = document.createElement('a');
+                a.href = url; a.download = name; a.textContent = 'Скачать DOC (предварительный просмотр не поддерживается)'; a.style.color = '#0369a1';
+                previewContent.appendChild(a);
+                const reader = new FileReader(); reader.onload = (e) => { currentContent = arrayBufferToBase64(e.target.result); }; reader.readAsArrayBuffer(file);
+                return;
+            }
+
+            // Запасной путь: попытаться прочитать файл как текст
+            const textReader = new FileReader();
+            textReader.onload = function(e) {
+                const txt = e.target.result || '';
+                const pre = document.createElement('pre');
+                pre.style.whiteSpace = 'pre-wrap'; pre.style.wordBreak = 'break-word'; pre.textContent = txt;
+                previewContent.appendChild(pre);
+                currentContent = txt;
+            };
+            // try read as text, if fails fallback to arraybuffer -> base64
+            try { textReader.readAsText(file); } catch (err) { const ar = new FileReader(); ar.onload = function(ev) { currentContent = arrayBufferToBase64(ev.target.result); }; ar.readAsArrayBuffer(file); }
+        }
+
+        // Вспомогательная функция для вычисления хеша на стороне сервера
+        function sendHash() {
+            // accept file from workspace input or older commonFileInput
+            const commonFileEl = document.getElementById('commonFileInput');
+            const f = (commonFileEl && commonFileEl.files && commonFileEl.files[0]) || (fileInput && fileInput.files && fileInput.files[0]);
+            if (!f) { alert('Сначала выберите файл!'); return; }
+            const fd = new FormData(); fd.append('file', f);
+            // show pending
+            if (hashResult) { hashResult.style.display = 'none'; }
+            if (hashValue) { hashValue.textContent = 'Ожидайте...'; hashValue.style.color = ''; if (hashValue.style) hashValue.style.whiteSpace = 'normal'; }
+            fetch('/get_file_hash', { method:'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (!hashValue) return;
+                    if (data && data.hash) {
+                        // Format long hex into 64-char lines for readability
+                        const hx = data.hash.replace(/\s+/g, '');
+                        const parts = hx.match(/.{1,64}/g) || [hx];
+                        hashValue.textContent = parts.join('\n');
+                        if (hashValue.style) hashValue.style.whiteSpace = 'pre-wrap';
+                        if (hashResult) hashResult.style.display = 'block';
+                    }
+                    else { hashValue.textContent = 'Ошибка: ' + (data && data.error ? data.error : 'неизвестная ошибка'); hashValue.style.color = 'red'; if (hashResult) hashResult.style.display = 'block'; }
+                })
+                .catch(e => { console.error('sendHash error', e); alert('Ошибка при отправке: ' + (e && e.message ? e.message : String(e))); });
+        }
+
+        // local key generation
+        function generateKeyLocal(length = 64) {
+            const bytes = new Uint8Array(length / 2);
+            if (window.crypto && crypto.getRandomValues) { crypto.getRandomValues(bytes); }
+            else { for (let i=0;i<bytes.length;i++) bytes[i] = Math.floor(Math.random()*256); }
             return Array.from(bytes, b => ('0' + b.toString(16)).slice(-2)).join('').toUpperCase();
         }
 
         function showKeyOnUI(key) {
-            const area = document.getElementById('keyArea');
-            const input = document.getElementById('generatedKeyInput');
-            if (!area || !input) return;
-            input.value = key;
-            area.style.display = 'block';
+            if (!keyArea || !generatedKeyInput) return; generatedKeyInput.value = key; keyArea.style.display = 'block';
         }
 
-        // Привязки кнопок
-        const genBtn = document.getElementById('generateKeyButton');
-        if (genBtn) {
-            genBtn.addEventListener('click', (e) => {
-                const key = generateKeyLocal(64);
-                showKeyOnUI(key);
-            });
-        }
+        // Обработчик загрузки (чтение файла и показ превью)
+        if (uploadBtn && fileInput) uploadBtn.addEventListener('click', () => {
+            const f = fileInput.files && fileInput.files[0];
+            console.debug('upload clicked, file:', f && f.name);
+            if (!f) { alert('Выберите файл для загрузки'); return; }
+            // Update mammoth notice status before previewing
+            if (mammothNotice) mammothNotice.style.display = (window.mammoth ? 'none' : 'block');
+            showPreviewForFile(f);
+        });
 
-        const copyIcon = document.getElementById('copyKeyIcon');
-        if (copyIcon) {
-            // добавим визуальный символ
-            copyIcon.textContent = '📋';
-            copyIcon.addEventListener('click', async () => {
-                const input = document.getElementById('generatedKeyInput');
-                if (!input || !input.value) return;
-                try {
-                    await navigator.clipboard.writeText(input.value);
-                    alert('Ключ скопирован в буфер обмена');
-                } catch (err) {
-                    // fallback
-                    input.select();
-                    document.execCommand('copy');
-                    alert('Ключ скопирован (fallback)');
-                }
-            });
-        }
+        if (clearBtn) clearBtn.addEventListener('click', () => {
+            if (!confirm('Очистить содержимое документа?')) return;
+            currentContent = '';
+            if (previewContent) previewContent.textContent = 'Документ очищен';
+            clearExistingBlob();
+            if (fileInput) fileInput.value = null;
+            if (selectedFileName) selectedFileName.textContent = 'Файл не выбран';
+            if (signSelectedFileName) signSelectedFileName.textContent = 'Файл не выбран';
+            if (signatureDate) signatureDate.textContent = '—';
+            if (hashResult) hashResult.style.display = 'none';
+            if (hashValue) hashValue.textContent = '';
+            if (generatedKeyInput) generatedKeyInput.value = '';
+            if (keyArea) keyArea.style.display = 'none';
+        });
 
-
-
-    
-
-
-// добавила отправку файла на бекенд 
-        function sendHash() {
-            const fileInput = document.getElementById("commonFileInput");
-            const file = fileInput.files[0];
-            if (!file) {
-                alert("Сначала выберите файл!");
+        if (encryptBtn) encryptBtn.addEventListener('click', () => {
+            if (!currentContent) { alert('Нет содержимого для шифрования'); return; }
+            const enc = btoa(unescape(encodeURIComponent('ENCRYPTED:' + currentContent)));
+            const blob = new Blob([enc], { type: 'application/octet-stream' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'document.enc';
+            document.body.appendChild(link); link.click(); setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 300);
+        });
+// ИНга для схем учета чтоб сохранялся файл
+        if (sendBtn) sendBtn.addEventListener('click', () => {
+            
+            const f = fileInput.files && fileInput.files[0];
+            if (!f) { 
+                alert('Сначала выберите файл для отправки на учёт!'); 
+                return; 
+            }
+            if (!currentContent) {
+                alert('Сначала загрузите документ (нажмите "Загрузить документ")!');
                 return;
             }
-
-            const formData = new FormData();
-            formData.append("file", file);
-
-            fetch("/get_file_hash", {
-                method: "POST",
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                const resultDiv = document.getElementById("hashResult");
-                const hashValueEl = document.getElementById("hashValue");
+            const reader = new FileReader();
+            
+            reader.onload = function(evt) {
+                const fileData = {
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    lastModified: f.lastModified,
+                    content: currentContent, 
+                    timestamp: new Date().toISOString()
+                };
                 
-                if (data.hash) {
-                    hashValueEl.textContent = data.hash;
-                    resultDiv.style.display = "block";
-                } else {
-                    hashValueEl.textContent = "Ошибка: " + (data.error || "неизвестная ошибка");
-                    hashValueEl.style.color = "red";
-                    resultDiv.style.display = "block";
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert("Ошибка при отправке: " + err.message);
-            });
-        }
+                localStorage.setItem('sentDocument', JSON.stringify(fileData));
+                localStorage.setItem('documentSent', 'true');
+                
+                alert('Документ "' + f.name + '" отправлен на прохождение учёта. Переход на страницу "Схема учета".');
+                window.location.href = '/static/workflow.html';
+            };
+            if (typeof currentContent === 'string' && currentContent.includes('base64')) {
+                const fileData = {
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    lastModified: f.lastModified,
+                    content: currentContent.split(',')[1] || currentContent,
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem('sentDocument', JSON.stringify(fileData));
+                localStorage.setItem('documentSent', 'true');
+                
+                alert('Документ "' + f.name + '" отправлен на прохождение учёта. Переход на страницу "Схема учета".');
+                window.location.href = '/static/workflow.html';
+            } else {
+                reader.readAsDataURL(f);
+            }
+        });
+        // Sign: generate signature date/time
+        if (signGenerateBtn) signGenerateBtn.addEventListener('click', () => {
+            const f = fileInput.files && fileInput.files[0];
+            if (!f) { alert('Выберите файл для подписи'); return; }
+            // For now, generate a timestamp representing the signature date/time
+            const d = new Date();
+            const pad = (n) => n.toString().padStart(2,'0');
+            const formatted = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            if (signatureDate) signatureDate.textContent = formatted;
+            // optionally store the signature into currentContent (mock)
+            currentContent = 'SIGNATURE:' + formatted;
+        });
 
-        const fileFormEl = document.getElementById("fileForm");
-        if (fileFormEl) {
-            fileFormEl.addEventListener("submit", async function (e) {
-            e.preventDefault();
+        // Переключение подпанелей режима "Кузнечик" (Зашифровать / Расшифровать)
+        if (kuzModeEncryptBtn) kuzModeEncryptBtn.addEventListener('click', () => {
+            if (kuzModeEncryptBtn) kuzModeEncryptBtn.classList.add('primary');
+            if (kuzModeDecryptBtn) kuzModeDecryptBtn.classList.remove('primary');
+            if (kuzEncryptPanel) kuzEncryptPanel.style.display = 'block';
+            if (kuzDecryptPanel) kuzDecryptPanel.style.display = 'none';
+            // restore preview, actions and global file chooser when in encrypt subpanel
+            try { const dp = document.getElementById('docPreview'); if (dp) dp.style.display = 'block'; } catch (e) {}
+            try { const da = document.querySelector('.doc-actions'); if (da) da.style.display = 'grid'; } catch (e) {}
+            try { const gf = document.getElementById('globalFileRow'); if (gf) gf.style.display = 'flex'; } catch (e) {}
+            if (encryptBtn) encryptBtn.style.display = '';
+        });
+        if (kuzModeDecryptBtn) kuzModeDecryptBtn.addEventListener('click', () => {
+            if (kuzModeDecryptBtn) kuzModeDecryptBtn.classList.add('primary');
+            if (kuzModeEncryptBtn) kuzModeEncryptBtn.classList.remove('primary');
+            if (kuzEncryptPanel) kuzEncryptPanel.style.display = 'none';
+            if (kuzDecryptPanel) kuzDecryptPanel.style.display = 'block';
+            // hide preview and common actions while in decrypt mode
+            try { const dp = document.getElementById('docPreview'); if (dp) dp.style.display = 'none'; } catch (e) {}
+            try { const da = document.querySelector('.doc-actions'); if (da) da.style.display = 'none'; } catch (e) {}
+            try { const gf = document.getElementById('globalFileRow'); if (gf) gf.style.display = 'none'; } catch (e) {}
+            if (encryptBtn) encryptBtn.style.display = 'none';
+        });
+        
 
-            const formData = new FormData();
-            formData.append("file", document.getElementById("fileInput").files[0]);
-            formData.append("mode", document.getElementById("modeInput").value);
+        // Процесс расшифровки в режиме "Кузнечик"
+        if (kuzDecryptChooseBtn && kuzDecryptFileInput) kuzDecryptChooseBtn.addEventListener('click', () => kuzDecryptFileInput.click());
+        if (kuzDecryptFileInput) kuzDecryptFileInput.addEventListener('change', () => {
+            const f = kuzDecryptFileInput.files && kuzDecryptFileInput.files[0];
+            kuzDecryptSelectedFile.textContent = f ? f.name : 'Файл не выбран';
+            // reset output state
+            if (kuzDecryptOutput) kuzDecryptOutput.style.display = 'none';
+            if (kuzDecryptText) kuzDecryptText.textContent = '';
+            if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.disabled = true;
+        });
+        // Нижняя кнопка "Очистить" дублирует функциональность (верхнюю кнопку ранее убрали)
+        if (kuzDecryptBottomClearBtn) kuzDecryptBottomClearBtn.addEventListener('click', () => {
+            if (!confirm('Очистить выбранный зашифрованный файл и результат?')) return;
+            if (kuzDecryptFileInput) kuzDecryptFileInput.value = null;
+            if (kuzDecryptSelectedFile) kuzDecryptSelectedFile.textContent = 'Файл не выбран';
+            if (kuzDecryptOutput) kuzDecryptOutput.style.display = 'none';
+            if (kuzDecryptText) kuzDecryptText.textContent = '';
+            if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.disabled = true;
+        });
+        if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.addEventListener('click', () => {
+            const f = kuzDecryptFileInput.files && kuzDecryptFileInput.files[0];
+            if (!f) { alert('Выберите зашифрованный файл'); return; }
+            const r = new FileReader();
+            r.onload = function(ev) {
+                try {
+                    const text = ev.target.result || '';
+                    const raw = text.replace(/\s+/g,'');
+                    const decoded = decodeURIComponent(escape(atob(raw)));
+                    const out = decoded.startsWith('ENCRYPTED:') ? decoded.slice('ENCRYPTED:'.length) : decoded;
+                    // show result
+                    if (kuzDecryptText) kuzDecryptText.textContent = out;
+                    if (kuzDecryptOutput) kuzDecryptOutput.style.display = 'block';
+                    // Немедленный запуск скачивания
+                    const blob = new Blob([out], { type: 'text/plain;charset=utf-8' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'document.dec.txt';
+                    document.body.appendChild(link); link.click(); setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 300);
+                } catch (e) { alert('Ошибка при расшифровке: ' + e.message); }
+            };
+            r.readAsText(f);
+        });
+        
+        // Копирование даты подписи в буфер обмена
+        if (signatureCopyBtn) signatureCopyBtn.addEventListener('click', async () => {
+            const txt = signatureDate && signatureDate.textContent ? signatureDate.textContent : '';
+            if (!txt || txt === '—') { alert('Нет даты для копирования'); return; }
+            try {
+                await navigator.clipboard.writeText(txt);
+                // quick visual feedback
+                const old = signatureCopyBtn.textContent; signatureCopyBtn.textContent = 'Скопировано'; setTimeout(() => { signatureCopyBtn.textContent = old; }, 1500);
+            } catch (e) {
+                // fallback: try document.execCommand
+                try {
+                    const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); alert('Дата скопирована');
+                } catch (ex) { alert('Не удалось скопировать дату'); }
+            }
+        });
 
-            const response = await fetch("/process", { method: "POST", body: formData });
-            const data = await response.json();
-
-            const resultBlock = document.getElementById("resultBlock");
-            const resultText = document.getElementById("resultText");
-
-            resultText.textContent = data.result || data.error;
-            resultBlock.style.display = "block";
-            });
-        }
-
+    })();
+    });
     </script>
 </body>
 </html>
