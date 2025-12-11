@@ -220,7 +220,7 @@
             const target = this.getAttribute('data-tab');
             document.querySelectorAll('.top-tab-pane').forEach(p => p.style.display = 'none');
             const pane = document.getElementById(target);
-            if (pane) pane.style.display = 'block';
+            if (pane) pane.style.display = 'block';    
         }));
 
         // Устанавливаем начальную активную вкладку в зависимости от пути URL
@@ -604,11 +604,54 @@
             link.download = 'document.enc';
             document.body.appendChild(link); link.click(); setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 300);
         });
-
+// ИНга для схем учета чтоб сохранялся файл
         if (sendBtn) sendBtn.addEventListener('click', () => {
-            alert('Документ отправлен на прохождение учёта (эмуляция). Открываю страницу "Схема учета".');
-            // Navigate to the static workflow page (new location)
-            window.location.href = '/static/workflow.html';
+            
+            const f = fileInput.files && fileInput.files[0];
+            if (!f) { 
+                alert('Сначала выберите файл для отправки на учёт!'); 
+                return; 
+            }
+            if (!currentContent) {
+                alert('Сначала загрузите документ (нажмите "Загрузить документ")!');
+                return;
+            }
+            const reader = new FileReader();
+            
+            reader.onload = function(evt) {
+                const fileData = {
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    lastModified: f.lastModified,
+                    content: currentContent, 
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem('sentDocument', JSON.stringify(fileData));
+                localStorage.setItem('documentSent', 'true');
+                
+                alert('Документ "' + f.name + '" отправлен на прохождение учёта. Переход на страницу "Схема учета".');
+                window.location.href = '/static/workflow.html';
+            };
+            if (typeof currentContent === 'string' && currentContent.includes('base64')) {
+                const fileData = {
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    lastModified: f.lastModified,
+                    content: currentContent.split(',')[1] || currentContent,
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem('sentDocument', JSON.stringify(fileData));
+                localStorage.setItem('documentSent', 'true');
+                
+                alert('Документ "' + f.name + '" отправлен на прохождение учёта. Переход на страницу "Схема учета".');
+                window.location.href = '/static/workflow.html';
+            } else {
+                reader.readAsDataURL(f);
+            }
         });
         // Sign: generate signature date/time
         if (signGenerateBtn) signGenerateBtn.addEventListener('click', () => {

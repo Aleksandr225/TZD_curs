@@ -4,10 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/workflow.css">
     <title>Схема учета</title>
-    <style> /* Нейтральный фон, чтобы область под фиксированной верхней панелью выглядела пустой */
-        body { min-height: calc(100vh - 66px); background: #f8fafc; }
-    </style>
 </head>
 <body>
     <div class="top-tabs" role="navigation">
@@ -24,14 +22,260 @@
         </div>
     </div>
 
-    <!-- Содержимое намеренно оставлено пустым под верхней панелью (по запросу) -->
+    <!-- Добавляем контент страницы Схемы учета -->
+    <div class="content-container">
+        <h1 class="page-title">Схемы учета</h1>
+        
+        <!-- Баннер уведомления о полученном документе -->
+        <div id="documentNotification" class="document-notification" style="display: none;">
+            <div class="notification-content">
+                <span id="notificationText"></span>
+                <button id="notificationDismiss" class="btn-small">✕</button>
+            </div>
+        </div>
+        
+        <div class="mode-description">
+            <h2>Описание режима</h2>
+            <p>На этой странице вы можете настроить схемы учета документов, загрузить документы для обработки и просмотреть схему прохождения документов в системе.</p>
+        </div>
+        
+        <div class="upload-section">
+            <h2>Загрузить документ</h2>
+            <div class="file-step">
+                <span class="step-badge">1</span>
+                <div class="file-select">
+                    <button id="workflowUploadBtn" class="upload-button btn-small primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        Выбрать файл
+                    </button>
+                    <span id="workflowFileName" class="file-name">Файл не выбран</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="document-form">
+            <h2>Информация о документе</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Краткое наименование документа</label>
+                    <input type="text" class="form-input" placeholder="Введите наименование документа" id="docName">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Тип документа</label>
+                    <input type="text" class="form-input" placeholder="Выберите тип документа" id="docType">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Откуда поступил</label>
+                    <input type="text" class="form-input" placeholder="Укажите источник" id="docSource" value="Главная страница (Кузнечик)">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Поля для ввода</label>
+                <textarea class="form-input" rows="4" placeholder="Введите дополнительные данные документа" id="docFields"></textarea>
+            </div>
+        </div>
+        
+        <div class="document-preview">
+            <h2>Предосмотр документа</h2>
+            <div class="preview-placeholder" id="documentPreviewContent">
+                <div class="preview-content-default">
+                    Область предварительного просмотра документа
+                </div>
+            </div>
+        </div>
+        
+        <div class="doc-actions">
+            <div>
+                <button class="generate-button" id="generateWorkflowBtn">Сформировать</button>
+            </div>
+        </div>
+        
+        <div class="workflow-section">
+            <h2>Схема прохода документов</h2>
+            <div class="workflow-placeholder">
+                <div class="preview-content-default">
+                    Диаграмма или схема прохождения документов будет отображена здесь
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const items = document.querySelectorAll('.top-tab-item');
-        items.forEach(it => it.addEventListener('click', function(){ const href = this.getAttribute('data-href'); if (href) { window.location.href = href; } }));
+        items.forEach(it => it.addEventListener('click', function(){ 
+            const href = this.getAttribute('data-href'); 
+            if (href) { 
+                window.location.href = href; 
+            } 
+        }));
+        
         const path = window.location.pathname || '/';
         if (path.endsWith('/static/workflow.html')) {
-            const el = document.querySelector('.top-tab-item[data-href="/static/workflow.html"]'); if (el) el.classList.add('active');
+            const el = document.querySelector('.top-tab-item[data-href="/static/workflow.html"]'); 
+            if (el) el.classList.add('active');
+        }
+        
+        // Проверяем, есть ли отправленный документ из index.html
+        const documentSent = localStorage.getItem('documentSent');
+        if (documentSent === 'true') {
+            const fileData = JSON.parse(localStorage.getItem('sentDocument') || '{}');
+            
+            if (fileData && fileData.name) {
+                // Показываем уведомление
+                const notification = document.getElementById('documentNotification');
+                const notificationText = document.getElementById('notificationText');
+                const fileName = document.getElementById('workflowFileName');
+                const docName = document.getElementById('docName');
+                const docType = document.getElementById('docType');
+                const docSource = document.getElementById('docSource');
+                const preview = document.getElementById('documentPreviewContent');
+                
+                if (notification && notificationText) {
+                    notification.style.display = 'block';
+                    notificationText.textContent = `Получен документ: ${fileData.name} (${formatBytes(fileData.size)})`;
+                }
+                
+                if (fileName) {
+                    fileName.textContent = `Загружен: ${fileData.name} (${formatBytes(fileData.size)})`;
+                    fileName.style.color = '#059669';
+                    fileName.style.fontWeight = 'bold';
+                }
+                
+                if (docName) {
+                    const nameWithoutExt = fileData.name.replace(/\.[^/.]+$/, "");
+                    docName.value = nameWithoutExt;
+                }
+                
+                if (docType) {
+                    const ext = fileData.name.split('.').pop().toUpperCase();
+                    docType.value = `Файл ${ext}`;
+                }
+                
+                if (docSource) {
+                    docSource.value = "Главная страница (Кузнечик)";
+                }
+                
+                // Показываем предпросмотр
+                if (preview && fileData.content) {
+                    preview.innerHTML = '';
+                    
+                    // Определяем тип файла и показываем соответствующее содержимое
+                    if (fileData.type.startsWith('image/')) {
+                        const img = document.createElement('img');
+                        img.src = `data:${fileData.type};base64,${fileData.content}`;
+                        img.alt = fileData.name;
+                        img.style.maxWidth = '100%';
+                        img.style.maxHeight = '180px';
+                        img.style.borderRadius = '6px';
+                        preview.appendChild(img);
+                    } else if (fileData.type.includes('text') || fileData.name.endsWith('.txt')) {
+                        try {
+                            const text = atob(fileData.content);
+                            const pre = document.createElement('pre');
+                            pre.style.whiteSpace = 'pre-wrap';
+                            pre.style.wordBreak = 'break-word';
+                            pre.style.maxHeight = '180px';
+                            pre.style.overflow = 'auto';
+                            pre.style.padding = '10px';
+                            pre.style.background = '#f8fafc';
+                            pre.style.borderRadius = '6px';
+                            pre.textContent = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
+                            preview.appendChild(pre);
+                        } catch (e) {
+                            preview.innerHTML = `<div class="preview-content-default">Файл загружен: ${fileData.name}</div>`;
+                        }
+                    } else {
+                        preview.innerHTML = `
+                            <div style="text-align: center; padding: 20px;">
+                                <div style="margin-bottom: 10px; font-size: 48px;">📄</div>
+                                <div style="font-weight: bold;">${fileData.name}</div>
+                                <div style="color: #64748b; font-size: 14px; margin-top: 5px;">
+                                    ${formatBytes(fileData.size)} • ${new Date(fileData.timestamp).toLocaleString()}
+                                </div>
+                                <button id="downloadReceivedFile" class="btn-small primary" style="margin-top: 15px;">
+                                    Скачать файл
+                                </button>
+                            </div>
+                        `;
+                        
+                        // Добавляем обработчик для кнопки скачивания
+                        document.getElementById('downloadReceivedFile').addEventListener('click', function() {
+                            downloadFile(fileData);
+                        });
+                    }
+                }
+                
+                // Очищаем флаг после обработки
+                localStorage.removeItem('documentSent');
+            }
+        }
+        
+        // Функция для форматирования размера файла
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+        
+        // Функция для скачивания файла
+        function downloadFile(fileData) {
+            try {
+                const byteCharacters = atob(fileData.content);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: fileData.type });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileData.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('Ошибка при скачивании файла: ' + e.message);
+            }
+        }
+        
+        // Добавляем обработчики для кнопок на странице
+        const uploadButton = document.getElementById('workflowUploadBtn');
+        if (uploadButton) {
+            uploadButton.addEventListener('click', function() {
+                alert('Функция загрузки документа активирована. В реальном приложении здесь будет открыт диалог выбора файла.');
+            });
+        }
+        
+        const generateButton = document.getElementById('generateWorkflowBtn');
+        if (generateButton) {
+            generateButton.addEventListener('click', function() {
+                const docName = document.getElementById('docName').value;
+                if (!docName.trim()) {
+                    alert('Введите краткое наименование документа!');
+                    return;
+                }
+                alert(`Документ "${docName}" сформирован согласно выбранной схеме учета.`);
+            });
+        }
+        
+        const notificationDismiss = document.getElementById('notificationDismiss');
+        if (notificationDismiss) {
+            notificationDismiss.addEventListener('click', function() {
+                const notification = document.getElementById('documentNotification');
+                if (notification) {
+                    notification.style.display = 'none';
+                }
+            });
         }
     });
     </script>
