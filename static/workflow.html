@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/static/index.css">
+    <title>Схема учета</title>
+    <style> /* Нейтральный фон, чтобы область под фиксированной верхней панелью выглядела пустой */
+        body { min-height: calc(100vh - 66px); background: #f8fafc; }
+    </style>
+</head>
+<body>
+    <div class="top-tabs" role="navigation">
+        <div class="top-tabs-inner container">
+            <ul class="top-tab-bar" role="tablist">
+                <li class="top-tab-item" data-href="/static/index.html">Работа с файлами</li>
+                <li class="top-tab-item" data-href="/static/workflow.html">Схема учета</li>
+                <li class="top-tab-item" data-href="/static/forms.html">Формы учета</li>
+            </ul>
+            <div class="top-user-info" aria-hidden="true">
+                <div class="user-avatar" title="Пользователь">A</div>
+                <div class="user-name">Александр</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Содержимое намеренно оставлено пустым под верхней панелью (по запросу) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const items = document.querySelectorAll('.top-tab-item');
+        items.forEach(it => it.addEventListener('click', function(){ const href = this.getAttribute('data-href'); if (href) { window.location.href = href; } }));
+        const path = window.location.pathname || '/';
+        if (path.endsWith('/static/workflow.html')) {
+            const el = document.querySelector('.top-tab-item[data-href="/static/workflow.html"]'); if (el) el.classList.add('active');
+        }
+    });
+    </script>
+</body>
+</html>
