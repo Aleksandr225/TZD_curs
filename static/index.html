@@ -101,7 +101,7 @@
                                     <div style="display:flex; gap:8px; align-items:center;">
                                         <div style="display:flex; gap:8px; width:100%;">
                                             <button id="kuzDecryptBottomClearBtn" class="btn-small" type="button" style="flex:1;">Очистить</button>
-                                            <button id="kuzDecryptActionDownloadBtn" class="btn-small primary" type="button" style="flex:1;" disabled>Расшифровать и скачать</button>
+                                            <button id="kuzDecryptActionDownloadBtn" class="btn-small primary" type="button" style="flex:1;">Расшифровать и скачать</button>
                                         </div>
                                     </div>
                                     <div id="kuzDecryptOutput" style="display:none; margin-top:8px; background:#fbfbfc; padding:8px; border-radius:6px; border:1px solid #e6eef8;">
@@ -560,7 +560,9 @@
             // Создание FormData и добавление данных
             const fd = new FormData();
             fd.append('file', f);
-            fd.append('key', keyValue);  // Теперь правильно: значение, а не элемент
+            fd.append('key', keyValue);
+            var filename = f.name;
+            filename = filename.slice(0, -4) + 'enc';
             
             // Отправка на сервер
             fetch('/cipher_file', {
@@ -569,30 +571,100 @@
             })
             .then(res => {
                 if (!res.ok) {
-                    throw new Error(`Ошибка сервера: ${res.status} ${res.statusText}`);
+                    // Для ошибок читаем ответ как текст (может быть JSON, HTML или другой формат)
+                    return res.text().then(errText => {
+                        throw new Error(errText || 'Неизвестная ошибка сервера');
+                    });
                 }
-                return res.json();  // Предполагаем, что сервер возвращает JSON
+               
+                return res.blob();
             })
-            .then(data => {
-                // Обработка успешного ответа (пример: алерт с сообщением)
-                if (data.status === 'success') {
-                    alert(`Файл обработан: ${data.message || 'Готово!'}`);
-                    // Если сервер возвращает файл (например, data.fileUrl), скачайте его:
-                    if (data.fileUrl) {
-                        const link = document.createElement('a');
-                        link.href = data.fileUrl;
-                        link.download = 'processed_file';  // Имя файла для скачивания
-                        link.click();
-                    }
-                } else {
-                    alert(`Ошибка: ${data.error || 'Неизвестная ошибка'}`);
-                }
+            .then(blob => {
+                // Создаём URL для blob
+                const url = URL.createObjectURL(blob);
+                
+                // Создаём временный элемент <a> для скачивания
+                const link = document.createElement('a');
+                link.href = url;
+                
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();  
+                document.body.removeChild(link);
+                
+                // Освобождаем память
+                URL.revokeObjectURL(url);
+
             })
             .catch(error => {
                 console.error('Ошибка запроса:', error);
                 alert(`Ошибка при отправке: ${error.message}`);
             });
         }
+
+        function sendUnshifr() {
+            console.log('sendUnshifr вызвана');
+            // Получение файла (из commonFileInput или глобального fileInput)
+            const kuzDecryptFileInputEl = document.getElementById('kuzDecryptFileInput');
+        const f = kuzDecryptFileInputEl && kuzDecryptFileInputEl.files && kuzDecryptFileInputEl.files[0];
+            // Получение ключа (значение из input)
+            const keyEl = document.getElementById('kuzKeyInput');
+            const keyValue = keyEl ? keyEl.value.trim() : '';
+            
+            // Валидация
+            if (!f) {
+                alert('Сначала выберите файл!');
+                return;
+            }
+            if (!keyValue) {
+                alert('Введите ключ!');
+                return;
+            }
+            
+            // Создание FormData и добавление данных
+            const fd = new FormData();
+            fd.append('file', f);
+            fd.append('key', keyValue);
+            var filename = f.name;
+            filename = filename.slice(0, -4)+ 'dec' + '.docx';
+            // Отправка на сервер
+            fetch('/decipher_file', {
+                method: 'POST',
+                body: fd
+            })
+            .then(res => {
+                if (!res.ok) {
+                    // Для ошибок читаем ответ как текст (может быть JSON, HTML или другой формат)
+                    return res.text().then(errText => {
+                        throw new Error(errText || 'Неизвестная ошибка сервера');
+                    });
+                }
+                // Если успех (200), возвращаем blob для скачивания
+                return res.blob();
+            })
+            .then(blob => {
+                // Создаём URL для blob
+                const url = URL.createObjectURL(blob);
+                
+                // Создаём временный элемент <a> для скачивания
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;  // Имя файла (соответствует download_name в Flask)
+                document.body.appendChild(link);
+                link.click();  // Автоматически кликаем для скачивания
+                document.body.removeChild(link);
+                
+                // Освобождаем память
+                URL.revokeObjectURL(url);
+                
+                alert('Файл зашифрован и скачан!');
+            })
+            .catch(error => {
+                console.error('Ошибка запроса:', error);
+                alert(`Ошибка при отправке: ${error.message}`);
+            });
+        }
+
 
 
         // Вспомогательная функция для вычисления хеша на стороне сервера
@@ -691,11 +763,7 @@
         if (encryptBtn) encryptBtn.addEventListener('click', () => {
             if (!currentContent) { alert('Нет содержимого для шифрования'); return; }
             const enc = sendshifr();
-            const blob = new Blob([enc], { type: 'application/octet-stream' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'document.enc';
-            document.body.appendChild(link); link.click(); setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 300);
+            
         });
 // ИНга для схем учета чтоб сохранялся файл
         if (sendBtn) sendBtn.addEventListener('click', () => {
@@ -792,7 +860,6 @@
             // reset output state
             if (kuzDecryptOutput) kuzDecryptOutput.style.display = 'none';
             if (kuzDecryptText) kuzDecryptText.textContent = '';
-            if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.disabled = true;
         });
         // Show/hide key toggle
         // Show/hide toggle removed, no event listener required
@@ -803,30 +870,9 @@
             if (kuzDecryptSelectedFile) kuzDecryptSelectedFile.textContent = 'Файл не выбран';
             if (kuzDecryptOutput) kuzDecryptOutput.style.display = 'none';
             if (kuzDecryptText) kuzDecryptText.textContent = '';
-            if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.disabled = true;
         });
         if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.addEventListener('click', () => {
-            const f = kuzDecryptFileInput.files && kuzDecryptFileInput.files[0];
-            if (!f) { alert('Выберите зашифрованный файл'); return; }
-            const r = new FileReader();
-            r.onload = function(ev) {
-                try {
-                    const text = ev.target.result || '';
-                    const raw = text.replace(/\s+/g,'');
-                    const decoded = decodeURIComponent(escape(atob(raw)));
-                    const out = decoded.startsWith('ENCRYPTED:') ? decoded.slice('ENCRYPTED:'.length) : decoded;
-                    // show result
-                    if (kuzDecryptText) kuzDecryptText.textContent = out;
-                    if (kuzDecryptOutput) kuzDecryptOutput.style.display = 'block';
-                    // Немедленный запуск скачивания
-                    const blob = new Blob([out], { type: 'text/plain;charset=utf-8' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = 'document.dec.txt';
-                    document.body.appendChild(link); link.click(); setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 300);
-                } catch (e) { alert('Ошибка при расшифровке: ' + e.message); }
-            };
-            r.readAsText(f);
+            sendUnshifr()
         });
         
         // Копирование даты подписи в буфер обмена

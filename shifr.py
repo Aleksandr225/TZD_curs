@@ -256,6 +256,7 @@ class GOST3412_2015:
         bs = 16
         enc = []
         blocks = self.pad(data, 16)
+        global prev
         prev = blocks[0]
         
         y = prev
@@ -268,12 +269,8 @@ class GOST3412_2015:
             enc.append(encrypted_block)
             y +=1
 
-        C = b''.join(enc)
-        C = binascii.hexlify(C).decode()
-        C = make_right_len(C)
-        C = list(binascii.unhexlify(C))
-        z = self.imit_mgm(prev, key, A, C)    
-        print(f' mac: ={binascii.hexlify(bytes(z)).decode()}')
+        
+      
         
         
         return b''.join(enc)
@@ -296,12 +293,11 @@ class GOST3412_2015:
             dec.append(decrypted_block)
             y += 1  
     
-        plaintext = b''.join(dec)
-        plaintext = plaintext.rstrip(b'\x00')  
+        plaintext = b''.join(dec) 
         return plaintext
 
 
-
+prev = ''
 
 import binascii
 
@@ -317,153 +313,29 @@ def make_right_len_str(data):
     return data
 
 
-
-
-
-
-
-'''
-def start():
+def chifr_file(file_path, key):
     algo = GOST3412_2015()
-    print("Выберите режим: ")
-    print("1. Тестирование")
-    print("2. Работа с данными")
-    choice = input()
-    if choice == '1':
-        print('Выберите действие:')
-        print('1. Зашифровать')
-        print('2. Расшифровать')
-        print('3. Имитовставка')
-        print('4. МGM')
-        print('5. ХЭШ для документа')
-  
-        choice = input()
-
-        if choice == '1':
-            print('Key: 8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef\n data: 1122334455667700ffeeddccbbaa9988')
-            mtest = list(binascii.unhexlify('1122334455667700ffeeddccbbaa9988'))
-            ktest = list(binascii.unhexlify('6796826546d92f3fae8a94190bf12a1b'))
-
-            print('Зашифрованный текст:')
-            ctest = algo.start_encrypt(mtest, ktest)
-            print(binascii.hexlify(bytearray(ctest)).decode())
-
-        elif choice == '2':
-            print('Key: 8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef\n data: 1122334455667700ffeeddccbbaa9988')
-            ctest = list(binascii.unhexlify('7f679d90bebc24305a468d42b9d4edcd'))
-            print('Введите ключ (в hex): ')
-            ktest = list(binascii.unhexlify('8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef'))
-
-            print('Расшифрованный текст:')
-            mtest = algo.start_decrypt(ctest, ktest)
-            print(binascii.hexlify(bytearray(mtest)).decode())
-
-        elif choice == '3':
-            
-            data = '1122334455667700ffeeddccbbaa998800112233445566778899aabbcceeff0a112233445566778899aabbcceeff0a002233445566778899aabbcceeff0a0011aabbcc'
-            data = make_right_len_str(data)
-            data = list(binascii.unhexlify(data))
-            key = list(binascii.unhexlify('8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef'))
-
-            mac_value = algo.mac(data, key)
-            print("MAC:", binascii.hexlify(bytes(mac_value)).decode())
-
-        elif choice == '4':
-            data = list(binascii.unhexlify('1122334455667700ffeeddccbbaa998800112233445566778899aabbcceeff0a112233445566778899aabbcceeff0a002233445566778899aabbcceeff0a0011aabbcc'))
-            key = list(binascii.unhexlify('8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef'))
-            A = '0202020202020202010101010101010104040404040404040303030303030303ea0505050505050505'
-            res = algo.mgm(data, key, A)
-            print(binascii.hexlify(bytes(res)).decode())
-
-        elif choice == '5':
-            string = b'323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130'
-            hash_obj = gostcrypto.gosthash.new('streebog512', data=string)
-            res = hash_obj.hexdigest()
-            print(res)
-            
-        else:
-            print('Неверный выбор')
-    elif choice == '2':
-        print('Выберите действие:')
-        print('1. Зашифровать')
-        print('2. Расшифровать')
-        print('3. Имитовставка')
-        print('4. МGM')
-        print('5. ХЭШ для документа')
-  
-        choice = input()
-
-        if choice == '1':
-            path = input('Введите путь к файлу: ')
-            
-            ktest = list(binascii.unhexlify('8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef'))
-            with open(path, 'rb') as f:
-                text = f.read()
-
-            print('Зашифрованный текст:')
-            ctest = algo.start_encrypt(text, ktest)
-            print(binascii.hexlify(bytearray(ctest)).decode())
-
-        elif choice == '2':
-            print('Key: 8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef\n data: 1122334455667700ffeeddccbbaa9988')
-            ctest = list(binascii.unhexlify('7f679d90bebc24305a468d42b9d4edcd'))
-            print('Введите ключ (в hex): ')
-            ktest = list(binascii.unhexlify('8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef'))
-
-            print('Расшифрованный текст:')
-            mtest = algo.start_decrypt(ctest, ktest)
-            print(binascii.hexlify(bytearray(mtest)).decode())
-
-        elif choice == '3':
-            
-            data = '1122334455667700ffeeddccbbaa998800112233445566778899aabbcceeff0a112233445566778899aabbcceeff0a002233445566778899aabbcceeff0a0011aabbcc'
-            data = make_right_len_str(data)
-            data = list(binascii.unhexlify(data))
-            key = list(binascii.unhexlify('8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef'))
-
-            mac_value = algo.mac(data, key)
-            print("MAC:", binascii.hexlify(bytes(mac_value)).decode())
-
-        elif choice == '4':
-            data = list(binascii.unhexlify('1122334455667700ffeeddccbbaa998800112233445566778899aabbcceeff0a112233445566778899aabbcceeff0a002233445566778899aabbcceeff0a0011aabbcc'))
-            key = list(binascii.unhexlify('8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef'))
-            A = '0202020202020202010101010101010104040404040404040303030303030303ea0505050505050505'
-            res = algo.mgm(data, key, A)
-            print(binascii.hexlify(bytes(res)).decode())
-
-        elif choice == '5':
-            string = b'323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130'
-            hash_obj = gostcrypto.gosthash.new('streebog512', data=string)
-            res = hash_obj.hexdigest()
-            print(res)
-            
-        else:
-            print('Неверный выбор')
-
-    
-
-#start()
-
-# text - 1122334455667700ffeeddccbbaa9988
-# key - 8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef
-# untext - 7f679d90bebc24305a468d42b9d4edcd
-
-#   1122334455667700ffeeddccbbaa998800112233445566778899aabbcceeff0a112233445566778899aabbcceeff0a002233445566778899aabbcceeff0a0011aabbcc
-
-   0202020202020202010101010101010104040404040404040303030303030303ea0505050505050505
+    with open(file_path, 'rb') as f:
+        text = f.read()
+    key = key.lower()
+    key = list(binascii.unhexlify(key))
+    res = algo.mgm(text, key, A='')
+    n_file_path = file_path[:-4] + 'enc'
+    with open(n_file_path, 'wb') as file:
+        file.write(res)
+    return n_file_path
 
 
 
 
-
-file_path = (input('Введите путь к Файлу: '))
-buffer_size = 128
-hash_obj = gostcrypto.gosthash.new('streebog512')
-with open(file_path, 'rb') as file:
-    buffer = file.read(buffer_size)
-    while len(buffer) > 0:
-        hash_obj.update(buffer)
-        buffer = file.read(buffer_size)
-        hash_result = hash_obj.hexdigest()
-    print(hash_result)
-'''
+def unchifr_file(file_path, key):
+    algo = GOST3412_2015()
+    with open(file_path, 'rb') as f:
+        text = f.read()
+    key = key.lower()
+    key = list(binascii.unhexlify(key))
+    res = algo.decrypt_mgm(text, key, prev)
+    output_path = file_path[:-3] + 'docx'
+    with open(output_path, 'wb') as file:
+        file.write(res)
+    return output_path

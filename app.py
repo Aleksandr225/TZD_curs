@@ -1,9 +1,10 @@
 
-from flask import Flask, render_template, redirect, request, jsonify
+from flask import Flask, render_template, redirect, request, jsonify, send_file
 from main import *
+from gostsig import *
+import shifr
 
 app = Flask(__name__, template_folder="static")
-
 @app.route('/')
 def home_page():
     return render_template('auth.html')
@@ -77,19 +78,56 @@ def get_file_hash():
 def get_cipher_file():
     uploaded_file = request.files.get('file')
     key = request.form.get('key')
-    print(key)
     if not uploaded_file:
         return jsonify({'error': 'Файл не получен'}), 400
     file_path = f"uploads/{uploaded_file.filename}"
     uploaded_file.save(file_path)
+    
+    encrypted_file_path = shifr.chifr_file(file_path, key)
+    try:
+        return send_file(encrypted_file_path, as_attachment=True, download_name=encrypted_file_path[7:])  # Скачивание с именем
+    except Exception as e:
+        return jsonify({'error': f'Ошибка при отправке файла: {str(e)}'}), 500
+    
 
 
+@app.route('/decipher_file', methods=['POST'])
+def get_uncipher_file():
+    uploaded_file = request.files.get('file')
+    key = request.form.get('key')
+    if not uploaded_file:
+        return jsonify({'error': 'Файл не получен'}), 400
+    file_path = f"uploads/{uploaded_file.filename}"
+    uploaded_file.save(file_path)
+    
+    decrypted_file_path = shifr.unchifr_file(file_path, key)
+    try:
+        return send_file(decrypted_file_path, as_attachment=True, download_name='crypted_file')  # Скачивание с именем
+    except Exception as e:
+        return jsonify({'error': f'Ошибка при отправке файла: {str(e)}'}), 500
+
+
+#6497B98333D63AFBEBC8F4228420065D4540008A7D9A139A6B81EA85CDF89F30
 
 @app.route('/home/gen_key', methods=['GET'])
 def key_gen():
     key = generate_key()
 
     return jsonify({"key": key})
+
+
+@app.route('/sig', methods=['POST'])
+def get_sig():
+    uploaded_file = request.files.get('file')
+    if not uploaded_file:
+        return jsonify({'error': 'Файл не получен'}), 400
+    file_path = f"uploads/{uploaded_file.filename}"
+    uploaded_file.save(file_path)
+    sig_path = get_sig(file_path)
+    try:
+        return send_file(sig_path, as_attachment=True, download_name='crypted_file')  # Скачивание с именем
+    except Exception as e:
+        return jsonify({'error': f'Ошибка при отправке файла: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

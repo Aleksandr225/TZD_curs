@@ -101,5 +101,9 @@ def gost(file_path):
 
     print(f"Число r: {r} Число u: {u}")
 
-gost('requirements.txt')
+    with open('uploads/sig', 'w') as sig:
+        lst = [P,Q,a, r, s]
+        sig.write(lst)
+
+    return 'uploads/sig'
 
