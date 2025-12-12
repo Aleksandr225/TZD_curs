@@ -61,17 +61,26 @@
         <div class="document-form">
             <h2>Информация о документе</h2>
             <div class="form-grid">
-                <div class="form-group">
+                <div class="form-group name-with-extension">
                     <label class="form-label">Краткое наименование документа</label>
-                    <input type="text" class="form-input" placeholder="Введите наименование документа" id="docName">
+                    <div class="name-input-wrapper">
+                        <input type="text" class="form-input name-input" placeholder="Введите наименование документа" id="docName">
+                        <div class="extension-display" id="extensionDisplay"></div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Тип документа</label>
-                    <input type="text" class="form-input" placeholder="Выберите тип документа" id="docType">
+                    <select class="form-input" id="docType">
+                        <option value="">Выберите тип документа</option>
+                        <option value="письмо">Письмо</option>
+                        <option value="инструкция">Инструкция</option>
+                        <option value="приказ">Приказ</option>
+                        <option value="протокол">Протокол</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Откуда поступил</label>
-                    <input type="text" class="form-input" placeholder="Укажите источник" id="docSource" value="Главная страница (Кузнечик)">
+                    <input type="text" class="form-input" placeholder="Введите источник поступления" id="docSource">
                 </div>
             </div>
             <div class="form-group">
@@ -119,6 +128,7 @@
         const docName = document.getElementById('docName');
         const docType = document.getElementById('docType');
         const docSource = document.getElementById('docSource');
+        const extensionDisplay = document.getElementById('extensionDisplay');
         const generateButton = document.getElementById('generateWorkflowBtn');
         
         // хранение текущего файла
@@ -137,19 +147,30 @@
                     workflowFileName.textContent = `${file.name} (${formatBytes(file.size)})`;
                     workflowFileName.classList.add('selected');
                     
-                    // Автозаполнение формы
+                    // Получаем расширение файла
+                    const fileName = file.name;
+                    const extension = fileName.includes('.') 
+                        ? fileName.substring(fileName.lastIndexOf('.')) 
+                        : '';
+                    
+                    // Показываем расширение
+                    if (extensionDisplay) {
+                        extensionDisplay.textContent = extension;
+                        extensionDisplay.style.display = extension ? 'flex' : 'none';
+                    }
+                    
+                    // Автозаполнение имени (без расширения)
                     if (docName) {
-                        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+                        const nameWithoutExt = extension 
+                            ? fileName.substring(0, fileName.lastIndexOf('.'))
+                            : fileName;
                         docName.value = nameWithoutExt;
                     }
                     
-                    if (docType) {
-                        const ext = file.name.split('.').pop().toUpperCase();
-                        docType.value = `${ext} файл`;
-                    }
-                    
+                    // Источник оставляем пустым для ручного ввода
                     if (docSource) {
-                        docSource.value = "Загружен вручную";
+                        docSource.value = "";
+                        docSource.focus();
                     }
                 }
             });
@@ -176,19 +197,32 @@
                     workflowFileName.style.fontWeight = 'bold';
                 }
                 
+                // Получаем расширение файла
+                const fileName = fileData.name;
+                const extension = fileName.includes('.') 
+                    ? fileName.substring(fileName.lastIndexOf('.')) 
+                    : '';
+                
+                // Показываем расширение
+                if (extensionDisplay) {
+                    extensionDisplay.textContent = extension;
+                    extensionDisplay.style.display = extension ? 'flex' : 'none';
+                }
+                
+                // Автозаполнение имени (без расширения)
                 if (docName) {
-                    const nameWithoutExt = fileData.name.replace(/\.[^/.]+$/, "");
+                    const nameWithoutExt = extension 
+                        ? fileName.substring(0, fileName.lastIndexOf('.'))
+                        : fileName;
                     docName.value = nameWithoutExt;
                 }
                 
-                if (docType) {
-                    const ext = fileData.name.split('.').pop().toUpperCase();
-                    docType.value = `${ext} файл`;
-                }
-                
+                // Автоматически устанавливаем источник для файла с главной страницы
                 if (docSource) {
-                    docSource.value = "Главная страница (Кузнечик)";
-                }
+                    docSource.value = ""; // Пустое значение
+                    // Можно добавить placeholder или подсказку
+                    docSource.focus(); // Фокус на поле для ввода
+}
                 
                 // объект File из сохраненных данных
                 if (fileData.content) {
@@ -230,9 +264,24 @@
         if (generateButton) {
             generateButton.addEventListener('click', function() {
                 const docNameValue = docName.value.trim();
+                const docTypeValue = docType.value;
+                const docSourceValue = docSource.value.trim();
                 
                 if (!docNameValue) {
                     alert('Введите краткое наименование документа!');
+                    docName.focus();
+                    return;
+                }
+                
+                if (!docTypeValue) {
+                    alert('Выберите тип документа из списка!');
+                    docType.focus();
+                    return;
+                }
+                
+                if (!docSourceValue) {
+                    alert('Введите источник поступления документа!');
+                    docSource.focus();
                     return;
                 }
                 
@@ -241,10 +290,11 @@
                     return;
                 }
                 
-                alert(`Документ "${docNameValue}" успешно загружен и сформирован согласно выбранной схеме учета.`);
+                alert(`Документ "${docNameValue}" успешно загружен и сформирован согласно выбранной схеме учета.\nТип: ${docTypeValue}\nИсточник: ${docSourceValue}`);
                 
                 // Здесь потом добавлю отправку файла в бд
                 
+                // Очищаем форму после успешной обработки
                 if (workflowFileInput) workflowFileInput.value = '';
                 if (workflowFileName) {
                     workflowFileName.textContent = 'Файл не выбран';
@@ -254,6 +304,11 @@
                 if (docName) docName.value = '';
                 if (docType) docType.value = '';
                 if (docSource) docSource.value = '';
+                if (extensionDisplay) {
+                    extensionDisplay.textContent = '';
+                    extensionDisplay.style.display = 'none';
+                }
+                document.getElementById('docFields').value = '';
                 currentWorkflowFile = null;
             });
         }
