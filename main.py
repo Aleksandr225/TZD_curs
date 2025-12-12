@@ -100,7 +100,7 @@ import random
 def generate_key() -> str:
     key_gen_alph: str = "0123456789ABCDEF"
     key: str = ''
-    for _ in range(64): key += key_gen_alph[random.randint(0,16)]
+    for _ in range(64): key += key_gen_alph[random.randint(0,15)]
     return key
 
 

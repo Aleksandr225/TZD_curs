@@ -424,8 +424,7 @@
 
         // Режим генерации ключа: сгенерировать локальный ключ и скопировать
         if (generateKeyButton) generateKeyButton.addEventListener('click', () => {
-            const key = generateKeyLocal(64);
-            showKeyOnUI(key);
+            const key = generateKey();
         });
         if (copyKeyIcon) {
             copyKeyIcon.addEventListener('click', async () => {
@@ -538,13 +537,71 @@
             try { textReader.readAsText(file); } catch (err) { const ar = new FileReader(); ar.onload = function(ev) { currentContent = arrayBufferToBase64(ev.target.result); }; ar.readAsArrayBuffer(file); }
         }
 
+
+        function sendshifr() {
+            // Получение файла (из commonFileInput или глобального fileInput)
+            const commonFileEl = document.getElementById('commonFileInput');
+            const f = (commonFileEl && commonFileEl.files && commonFileEl.files[0]) || (fileInput && fileInput.files && fileInput.files[0]);
+            
+            // Получение ключа (значение из input)
+            const keyEl = document.getElementById('kuzKeyInput');
+            const keyValue = keyEl ? keyEl.value.trim() : '';
+            
+            // Валидация
+            if (!f) {
+                alert('Сначала выберите файл!');
+                return;
+            }
+            if (!keyValue) {
+                alert('Введите ключ!');
+                return;
+            }
+            
+            // Создание FormData и добавление данных
+            const fd = new FormData();
+            fd.append('file', f);
+            fd.append('key', keyValue);  // Теперь правильно: значение, а не элемент
+            
+            // Отправка на сервер
+            fetch('/cipher_file', {
+                method: 'POST',
+                body: fd
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`Ошибка сервера: ${res.status} ${res.statusText}`);
+                }
+                return res.json();  // Предполагаем, что сервер возвращает JSON
+            })
+            .then(data => {
+                // Обработка успешного ответа (пример: алерт с сообщением)
+                if (data.status === 'success') {
+                    alert(`Файл обработан: ${data.message || 'Готово!'}`);
+                    // Если сервер возвращает файл (например, data.fileUrl), скачайте его:
+                    if (data.fileUrl) {
+                        const link = document.createElement('a');
+                        link.href = data.fileUrl;
+                        link.download = 'processed_file';  // Имя файла для скачивания
+                        link.click();
+                    }
+                } else {
+                    alert(`Ошибка: ${data.error || 'Неизвестная ошибка'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка запроса:', error);
+                alert(`Ошибка при отправке: ${error.message}`);
+            });
+        }
+
+
         // Вспомогательная функция для вычисления хеша на стороне сервера
         function sendHash() {
             // accept file from workspace input or older commonFileInput
             const commonFileEl = document.getElementById('commonFileInput');
             const f = (commonFileEl && commonFileEl.files && commonFileEl.files[0]) || (fileInput && fileInput.files && fileInput.files[0]);
             if (!f) { alert('Сначала выберите файл!'); return; }
-            const fd = new FormData(); fd.append('file', f);
+            const fd = new FormData(); fd.append('file', f); fd.a
             // show pending
             if (hashResult) { hashResult.style.display = 'none'; }
             if (hashValue) { hashValue.textContent = 'Ожидайте...'; hashValue.style.color = ''; if (hashValue.style) hashValue.style.whiteSpace = 'normal'; }
@@ -565,13 +622,42 @@
                 .catch(e => { console.error('sendHash error', e); alert('Ошибка при отправке: ' + (e && e.message ? e.message : String(e))); });
         }
 
-        // local key generation
-        function generateKeyLocal(length = 64) {
-            const bytes = new Uint8Array(length / 2);
-            if (window.crypto && crypto.getRandomValues) { crypto.getRandomValues(bytes); }
-            else { for (let i=0;i<bytes.length;i++) bytes[i] = Math.floor(Math.random()*256); }
-            return Array.from(bytes, b => ('0' + b.toString(16)).slice(-2)).join('').toUpperCase();
+        function generateKey() {
+            fetch('/home/gen_key')
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data && data.key) {
+                        const keyArea = document.getElementById('keyArea');
+                        const generatedKeyInput = document.getElementById('generatedKeyInput');
+                        if (!keyArea || !generatedKeyInput) return;
+                        generatedKeyInput.value = data.key;
+                        keyArea.style.display = 'block';
+                        console.log('Сгенерированный ключ:', data.key);
+                    } else {
+                        const keyArea = document.getElementById('keyArea');
+                        if (keyArea) {
+                            // Используем innerHTML, чтобы не сломать структуру (input и button внутри)
+                            keyArea.innerHTML = '<div style="color:red;">Ошибка: ' + (data && data.error ? data.error : 'неизвестная ошибка') + '</div>';
+                            keyArea.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при генерации ключа:', error);
+                    const keyArea = document.getElementById('keyArea');
+                    if (keyArea) {
+                        keyArea.innerHTML = '<div style="color:red;">Ошибка сети или сервера: ' + error.message + '</div>';
+                        keyArea.style.display = 'block';
+                    }
+                });
         }
+
+
 
         function showKeyOnUI(key) {
             if (!keyArea || !generatedKeyInput) return; generatedKeyInput.value = key; keyArea.style.display = 'block';
@@ -604,7 +690,7 @@
 
         if (encryptBtn) encryptBtn.addEventListener('click', () => {
             if (!currentContent) { alert('Нет содержимого для шифрования'); return; }
-            const enc = btoa(unescape(encodeURIComponent('ENCRYPTED:' + currentContent)));
+            const enc = sendshifr();
             const blob = new Blob([enc], { type: 'application/octet-stream' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);

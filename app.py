@@ -73,11 +73,23 @@ def get_file_hash():
     return jsonify({"hash": hash_value})
 
 
+@app.route('/cipher_file', methods=['POST'])
+def get_cipher_file():
+    uploaded_file = request.files.get('file')
+    key = request.form.get('key')
+    print(key)
+    if not uploaded_file:
+        return jsonify({'error': 'Файл не получен'}), 400
+    file_path = f"uploads/{uploaded_file.filename}"
+    uploaded_file.save(file_path)
 
-@app.route('/gen_key', methods=['POST'])
+
+
+@app.route('/home/gen_key', methods=['GET'])
 def key_gen():
     key = generate_key()
-    return render_template({'key': key})
+
+    return jsonify({"key": key})
 
 
 if __name__ == '__main__':
