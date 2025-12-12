@@ -1,19 +1,34 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
     /* позволяем странице быть во всю ширину, чтобы панель могла расширяться влево */
     margin: 0;
     padding: 0;
     background-color: #f4f4f4;
+    line-height: 1.5;
+    color: var(--text);
+}
+:root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --muted: #6b7280;
+    --text: #0f172a;
+    --primary: #0b74c1;
+    --accent: #0ea5e9;
+    --focus: rgba(14,165,233,0.14);
+    --border: #e6eef8;
+    --shadow-strong: 0 8px 22px rgba(2,6,23,0.08);
+    --shadow-soft: 0 6px 18px rgba(2,6,23,0.04);
 }
 .container {
-    background: white;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    background: var(--surface);
+    padding: 26px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-soft);
 }
 h1 {
-    color: #333;
+    color: var(--text);
     text-align: center;
+    font-size: 22px;
 }
 form {
     margin-bottom: 20px;
@@ -22,17 +37,17 @@ input[type="file"] {
     width: 100%;
     padding: 10px;
     margin: 10px 0;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
 }
 button {
-    background-color: #007bff;
+    background-color: var(--primary);
     color: white;
-    padding: 10px 20px;
+    padding: 10px 18px;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
-    width: 100%;
+    transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
 button:hover {
     background-color: #0056b3;
@@ -102,7 +117,7 @@ button:hover {
     width: 100%;
     padding: 10px 12px;
     margin-bottom: 10px;
-    background: #f7fafc; /* очень светлый фон */
+    background: #f8fafc; /* очень светлый фон */
     border: 1px solid rgba(35,62,85,0.06);
     color: #233e55;
     text-align: left;
@@ -121,11 +136,11 @@ button:hover {
 }
 
 .cipher-btn.active {
-    background: #233e55; /* основной цвет акцента */
+    background: var(--primary); /* основной цвет акцента */
     color: white;
-    font-weight: 600;
-    border-color: rgba(35,62,85,0.12);
-    box-shadow: 0 8px 18px rgba(35,62,85,0.08);
+    font-weight: 700;
+    border-color: rgba(11,116,193,0.12);
+    box-shadow: var(--shadow-strong);
 }
 
 .main-content {
@@ -179,6 +194,78 @@ button:hover {
     box-sizing: border-box;
 }
 
+/* Form inputs default */
+.form-input {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+    box-sizing: border-box;
+}
+.form-input:focus { outline:none; border-color:var(--accent); box-shadow: 0 8px 20px var(--focus); }
+
+/* Ввод ключа для режима Кузнечик */
+#kuzKeyInput {
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    font-family: monospace;
+    box-sizing: border-box;
+    color: #0f172a;
+    max-width: 380px;
+}
+
+/* Акценты: единый набор кнопок и подсветка важных строк */
+.btn-small {
+    width: auto;
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 8px;
+    border: 1px solid rgba(16,24,40,0.06);
+    background: #f8fafc;
+    color: #111827;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+.btn-small:hover { background: #eef2ff; }
+.btn-small.primary { background: var(--accent); color: #fff; border-color: rgba(14,165,233,0.18); box-shadow: var(--shadow-strong); }
+.btn-small.primary:hover { background: #06b6d4; }
+
+/* Kuznechik toggle visual container */
+.kuz-mode-toggle { padding: 8px; border-radius: 8px; background: #fbfdff; border: 1px solid #e6eef8; gap: 8px; align-items: center; }
+
+/* Global file row / file name */
+.file-row { padding: 8px; border-radius: 8px; background: #fff; border: 1px solid #eef2ff; align-items: center; }
+.file-name { color: #475569; font-weight: 600; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-name.selected { color: #059669; font-weight: 700; }
+
+/* Doc Actions central button larger */
+.doc-actions > div > button { padding: 10px 14px; border-radius: 8px; min-width: 180px; }
+.doc-actions > div > button.btn-small.primary { background: #0b74c1; }
+
+/* key input focus more visible */
+#kuzKeyInput:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 6px 18px rgba(14,165,233,0.12); }
+
+/* minor: increase contrast on mode description */
+.mode-description { background: #f8fafc; border: 1px solid #dbeafe; color: #0f172a; font-weight: 500; }
+.mode-description h2 { margin: 0 0 6px 0; font-size: 16px; color: #334155; }
+
+/* Hover and focus helpers */
+.file-row:hover { box-shadow: 0 6px 12px rgba(2,6,23,0.06); }
+.btn-small:focus-visible { outline: 2px solid rgba(14,165,233,0.18); outline-offset: 2px; }
+.btn-small:active { transform: translateY(0); }
+
+/* Global accessibility focus styles for form controls */
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+}
+.kuz-mode-toggle .btn-small.primary { box-shadow: 0 6px 16px rgba(11,116,193,0.12); }
+.doc-actions > div > button.btn-small.primary { box-shadow: 0 8px 22px rgba(11,116,193,0.12); transform: translateY(0); transition: transform 140ms ease, box-shadow 140ms ease; }
+.doc-actions > div > button.btn-small.primary:hover { transform: translateY(-2px); }
+
 /* Документы - список/вьювер/схема */
 .documents-layout .doc-list { background:#fff; border:1px solid #ddd; padding:12px; border-radius:8px; }
 .documents-layout .doc-view { background:#fff; border:1px solid #ddd; padding:12px; border-radius:8px; }
@@ -207,6 +294,10 @@ button:hover {
 
 /* Карточки */
 .documents-layout .doc-list, .documents-layout .doc-view, .documents-layout .doc-workflow { box-shadow: 0 8px 20px rgba(2,6,23,0.06); }
+
+/* Preview area emphasis */
+#docPreview { border: 1px solid #e6eef8; background: #ffffff; padding: 12px; border-radius: 8px; box-shadow: 0 6px 18px rgba(2,6,23,0.04); }
+.preview-img { max-width: 100%; border-radius: 8px; display:block; margin: 0 auto; box-shadow: 0 8px 20px rgba(2,6,23,0.06); }
 
 #docViewContainer { min-height:200px; max-height: 320px; overflow:auto; }
 .wf-step { padding: 8px 14px; font-size: 14px; }
@@ -262,15 +353,15 @@ button:hover {
 }
 
 /* Верхняя панель вкладок на всю ширину страницы */
-.top-tabs { width:100%; background:#ffffff; box-shadow: 0 2px 8px rgba(15,23,42,0.06); border-bottom: 1px solid #eef2f7; position:fixed; top:0; left:0; right:0; z-index:50; }
+.top-tabs { width:100%; background:var(--surface); box-shadow: 0 2px 8px rgba(15,23,42,0.06); border-bottom: 1px solid rgba(2,6,23,0.04); position:fixed; top:0; left:0; right:0; z-index:50; }
 .top-tabs .top-tabs-inner { max-width: 1400px; margin: 0 auto; padding: 12px 18px; display:flex; align-items:center; justify-content:space-between; }
 .top-tab-bar { display:flex; gap:12px; list-style:none; margin:0; padding:0; align-items:center; }
 .top-tab-item { padding:10px 16px; border-radius:8px; cursor:pointer; background:transparent; color:#374151; border:1px solid transparent; }
-.top-tab-item.active { background:linear-gradient(90deg,#eef2ff,#f6f9ff); border-color: #dbe8ff; color:#0f172a; font-weight:600; box-shadow: 0 4px 12px rgba(14,58,255,0.04); }
+.top-tab-item.active { background: linear-gradient(90deg, rgba(11,116,193,0.12), rgba(14,165,233,0.06)); border-color: rgba(11,116,193,0.12); color: var(--text); font-weight:700; box-shadow: var(--shadow-strong); }
 .top-tab-content { margin-left: 12px; padding: 6px 0; color:#475569; }
 
 /* User info on the right */
-.top-user-info { display:flex; gap:8px; align-items:center; margin-left:auto; }
+.top-user-info { display:flex; gap:8px; align-items:center; margin-left:auto; padding:4px 8px; }
 .user-avatar { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#eef2ff,#dbeafe); color:#0f172a; font-weight:700; border:1px solid #c7ddff; box-shadow: 0 6px 16px rgba(14,58,255,0.03); }
 .user-name { font-size:13px; color:#0f172a; font-weight:600; }
 .top-tab-pane { display:none; }
@@ -309,7 +400,7 @@ body { padding-top: 66px; }
 /* Встроенная иконка копирования внутри поля */
 .input-with-copy { position: relative; display: block; }
 .input-with-copy input { width: 100%; padding-right: 44px; box-sizing: border-box; }
-.input-with-copy .copy-icon { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border-radius: 6px; padding: 6px; background-color: #fff; color: #000; border: 1px solid #000; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 30px; width: 32px; }
+.input-with-copy .copy-icon { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border-radius: 6px; padding: 6px; background-color: #fff; color: #0f172a; border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; height: 30px; width: 32px; }
 .input-with-copy .copy-icon:hover { background-color: #f3f3f3; }
 
 /* В мобильных устройствах иконка должна быть touch-friendly */
@@ -320,15 +411,16 @@ body { padding-top: 66px; }
 
 /* Стили для генерации и копирования - синие кнопки */
 #keyArea button, #generateKeyButton {
-    background-color: #007bff;
+    background-color: var(--primary);
     border: none;
     color: white;
     padding: 10px 16px;
     border-radius: 6px;
     cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
 
-#keyArea button:hover, #generateKeyButton:hover { background-color: #0056b3; }
+#keyArea button:hover, #generateKeyButton:hover { background-color: #095ea8; transform: translateY(-2px); }
 
 /* Custom file picker & small buttons */
 .file-step { display:flex; align-items:center; gap:8px; }
