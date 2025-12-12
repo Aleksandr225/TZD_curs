@@ -135,8 +135,7 @@
                 if (file) {
                     currentWorkflowFile = file;
                     workflowFileName.textContent = `${file.name} (${formatBytes(file.size)})`;
-                    workflowFileName.style.color = '#059669';
-                    workflowFileName.style.fontWeight = 'bold';
+                    workflowFileName.classList.add('selected');
                     
                     // Автозаполнение формы
                     if (docName) {

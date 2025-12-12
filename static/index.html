@@ -78,9 +78,14 @@
                             <div id="workspaceControls" class="workspace-row" style="display:flex; flex-direction:column; gap:12px; align-items:stretch;">
                                 <div id="kuzControls">
                                 <!-- Режим "Кузнечик": переключатель Зашифровать/Расшифровать -->
-                                <div class="kuz-mode-toggle" style="display:flex; gap:8px; margin-bottom:8px;">
+                                <div class="kuz-mode-toggle" style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
                                     <button id="kuzModeEncryptBtn" class="btn-small primary" type="button">Зашифровать</button>
                                     <button id="kuzModeDecryptBtn" class="btn-small" type="button">Расшифровать</button>
+                                    <!-- Поле ввода ключа для режима Кузнечик: видно справа от переключателей -->
+                                    <label for="kuzKeyInput" style="margin-left:auto; margin-right:8px; color:#475569; font-weight:500; font-size:13px;">Ключ:</label>
+                                    <div class="input-with-copy" style="max-width:340px; width:100%;">
+                                        <input id="kuzKeyInput" class="form-input" type="text" placeholder="Ключ для Кузнечика (hex)" title="Ожидается hex-строка (например: A1B2C3...)" style="width:100%; font-family:monospace;" />
+                                    </div>
                                 </div>
 
                                 <!-- Подпанели Кузнечика: зашифровать (по умолчанию) и расшифровать -->
@@ -129,9 +134,9 @@
 
                                 <!-- Кнопки под превью: слева/по центру/справа -->
                                 <div class="doc-actions" style="margin-top:6px;">
-                                    <div><button id="workspaceClearBtn" type="button">Очистить</button></div>
-                                    <div><button id="workspaceEncryptBtn" type="button">Зашифровать и скачать</button></div>
-                                    <div><button id="workspaceSendBtn" type="button">Отправить на прохождение учёта</button></div>
+                                    <div><button id="workspaceClearBtn" type="button" class="btn-small">Очистить</button></div>
+                                    <div><button id="workspaceEncryptBtn" type="button" class="btn-small primary">Зашифровать и скачать</button></div>
+                                    <div><button id="workspaceSendBtn" type="button" class="btn-small">Отправить на прохождение учёта</button></div>
                                 </div>
                                 </div>
                                 <!-- Контролы режима подписи (по умолчанию скрыты) -->
@@ -269,6 +274,8 @@
         const kuzDecryptActionDownloadBtn = document.getElementById('kuzDecryptActionDownloadBtn');
         const kuzDecryptOutput = document.getElementById('kuzDecryptOutput');
         const kuzDecryptText = document.getElementById('kuzDecryptText');
+        const kuzKeyInput = document.getElementById('kuzKeyInput');
+        // kuzKeyToggle removed - no show/hide behavior needed
         
         const signFileBtn = document.getElementById('signFileBtn');
         const signSelectedFileName = document.getElementById('signSelectedFileName');
@@ -377,13 +384,13 @@
                 const mb = kb / 1024; return `${mb.toFixed(2)} МБ`;
             };
             const displayText = f ? `Выбран: ${f.name} (${fmt(f.size)})` : 'Файл не выбран';
-            if (selectedFileName) selectedFileName.textContent = displayText;
-            if (signSelectedFileName) signSelectedFileName.textContent = displayText;
+            if (selectedFileName) { selectedFileName.textContent = displayText; selectedFileName.classList.toggle('selected', !!f); }
+            if (signSelectedFileName) { signSelectedFileName.textContent = displayText; signSelectedFileName.classList.toggle('selected', !!f); }
             const fileNameDisplay = document.getElementById('fileNameDisplay');
             if (fileNameDisplay) fileNameDisplay.textContent = displayText;
             if (signGenerateBtn) signGenerateBtn.disabled = !f;
             if (hashButton) hashButton.disabled = !f;
-            if (hashSelectedFileName) hashSelectedFileName.textContent = displayText;
+            if (hashSelectedFileName) { hashSelectedFileName.textContent = displayText; hashSelectedFileName.classList.toggle('selected', !!f); }
             if (hashButton) hashButton.disabled = !f;
         });
         // Обратная совместимость: поддержка старого элемента `commonFileInput`
@@ -701,6 +708,8 @@
             if (kuzDecryptText) kuzDecryptText.textContent = '';
             if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.disabled = true;
         });
+        // Show/hide key toggle
+        // Show/hide toggle removed, no event listener required
         // Нижняя кнопка "Очистить" дублирует функциональность (верхнюю кнопку ранее убрали)
         if (kuzDecryptBottomClearBtn) kuzDecryptBottomClearBtn.addEventListener('click', () => {
             if (!confirm('Очистить выбранный зашифрованный файл и результат?')) return;
