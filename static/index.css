@@ -376,6 +376,38 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 /* Make page content not hidden behind fixed top bar */
 body { padding-top: 66px; }
 
+/* Notification banner shown under the top-tabs */
+.page-notification {
+    position: fixed;
+    top: 66px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-6px);
+    min-width: 280px;
+    max-width: 800px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(2,6,23,0.08);
+    display: block;
+    opacity: 0;
+    z-index: 60;
+    transition: opacity 260ms ease, transform 260ms ease;
+    text-align: center;
+}
+.page-notification.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.page-notification.success { background: linear-gradient(90deg, #ecfdf5, #dcfce7); border: 1px solid #bbf7d0; color: #064e3b; }
+.page-notification.error { background: linear-gradient(90deg, #fff1f2, #fee2e2); border: 1px solid #fecaca; color: #7f1d1d; }
+.page-notification.info { background: linear-gradient(90deg, #eef2ff, #f6f9ff); border: 1px solid #dbe8ff; color: #0f172a; }
+
+/* Confirmation (banner with actions) */
+.page-notification.confirm { background: linear-gradient(90deg, #fff7ed, #ffe9d1); border: 1px solid #ffd6a5; color: #6b2e00; min-width: 440px; display:flex; align-items:center; justify-content:space-between; }
+.page-notification.confirm .pn-msg { flex:1; text-align:left; }
+.page-notification.confirm .pn-actions { display:flex; gap:8px; margin-left: 12px; }
+.page-notification.confirm .pn-actions .pn-confirm-btn { background: linear-gradient(90deg, #f97316, #fb923c); color: #fff; border: none; box-shadow: 0 6px 14px rgba(249,115,22,0.14); transition: transform 150ms ease, box-shadow 150ms ease; }
+.page-notification.confirm .pn-actions .pn-confirm-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(249,115,22,0.16); }
+.page-notification.confirm .pn-actions .pn-cancel-btn { background: transparent; color: #374151; border: 1px solid rgba(15,23,42,0.06); }
+.page-notification.confirm .pn-actions .pn-cancel-btn:hover { background: rgba(0,0,0,0.02); }
+.page-notification.confirm .pn-actions .pn-confirm-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(249,115,22,0.12); }
+
 /* Increase the preview area for better reading */
 .preview-iframe { height: 700px; }
 /* Add spacing above the preview area so it's not tight against file controls */

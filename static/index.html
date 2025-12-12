@@ -56,6 +56,8 @@
             </div>
         </div>
     </div>
+    <!-- Notification banner just below top tabs (used across the app) -->
+    <div id="pageNotification" class="page-notification" style="display:none;" aria-live="polite"></div>
 
     <div class="main-wrapper">
         <aside class="sidebar">
@@ -418,8 +420,8 @@
         if (hashButton) hashButton.addEventListener('click', () => { console.debug('hashButton clicked'); sendHash(); });
         if (hashCopyBtn) hashCopyBtn.addEventListener('click', async () => {
             if (!hashValue || !hashValue.textContent) return;
-            try { await navigator.clipboard.writeText(hashValue.textContent.replace(/\s+/g, '')); alert('Хеш скопирован в буфер обмена'); }
-            catch (e) { try { const ta = document.createElement('textarea'); ta.value = hashValue.textContent.replace(/\s+/g, ''); document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); alert('Хеш скопирован (fallback)'); } catch (ex) { alert('Не удалось скопировать хеш'); } }
+            try { await navigator.clipboard.writeText(hashValue.textContent.replace(/\s+/g, '')); showNotification('Хеш скопирован', 'success'); }
+            catch (e) { try { const ta = document.createElement('textarea'); ta.value = hashValue.textContent.replace(/\s+/g, ''); document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showNotification('Хеш скопирован (fallback)', 'success'); } catch (ex) { showNotification('Не удалось скопировать хеш', 'error'); } }
         });
 
         // Режим генерации ключа: сгенерировать локальный ключ и скопировать
@@ -430,9 +432,9 @@
         if (copyKeyIcon) {
             copyKeyIcon.addEventListener('click', async () => {
                 if (!generatedKeyInput || !generatedKeyInput.value) return;
-                try { await navigator.clipboard.writeText(generatedKeyInput.value); alert('Ключ скопирован в буфер обмена'); }
+                try { await navigator.clipboard.writeText(generatedKeyInput.value); showNotification('Ключ скопирован', 'success'); }
                 catch (err) {
-                    try { generatedKeyInput.select(); document.execCommand('copy'); alert('Ключ скопирован (fallback)'); } catch (e) { console.error('copy failed', e); alert('Не удалось скопировать'); }
+                    try { generatedKeyInput.select(); document.execCommand('copy'); showNotification('Ключ скопирован (fallback)', 'success'); } catch (e) { console.error('copy failed', e); showNotification('Не удалось скопировать', 'error'); }
                 }
             });
         }
@@ -543,7 +545,7 @@
             // accept file from workspace input or older commonFileInput
             const commonFileEl = document.getElementById('commonFileInput');
             const f = (commonFileEl && commonFileEl.files && commonFileEl.files[0]) || (fileInput && fileInput.files && fileInput.files[0]);
-            if (!f) { alert('Сначала выберите файл!'); return; }
+            if (!f) { showNotification('Сначала выберите файл!', 'error'); return; }
             const fd = new FormData(); fd.append('file', f);
             // show pending
             if (hashResult) { hashResult.style.display = 'none'; }
@@ -562,7 +564,7 @@
                     }
                     else { hashValue.textContent = 'Ошибка: ' + (data && data.error ? data.error : 'неизвестная ошибка'); hashValue.style.color = 'red'; if (hashResult) hashResult.style.display = 'block'; }
                 })
-                .catch(e => { console.error('sendHash error', e); alert('Ошибка при отправке: ' + (e && e.message ? e.message : String(e))); });
+                .catch(e => { console.error('sendHash error', e); showNotification('Ошибка при отправке: ' + (e && e.message ? e.message : String(e)), 'error'); });
         }
 
         // local key generation
@@ -577,33 +579,104 @@
             if (!keyArea || !generatedKeyInput) return; generatedKeyInput.value = key; keyArea.style.display = 'block';
         }
 
+        // Notification helper: simple banner under top tabs
+        function showNotification(msg, type = 'success', duration = 3500) {
+            try {
+                const el = document.getElementById('pageNotification');
+                if (!el) return; el.textContent = msg || '';
+                el.className = 'page-notification ' + (type || 'info') + ' visible';
+                el.style.display = 'block';
+                setTimeout(() => { el.classList.remove('visible'); setTimeout(() => { el.style.display = 'none'; }, 300); }, duration);
+            } catch (e) { console.error('showNotification error', e); }
+        }
+
+        // Confirmation helper: banner with action buttons
+        function showConfirmation(msg, onConfirm, onCancel, opts = {}) {
+            try {
+                const el = document.getElementById('pageNotification');
+                if (!el) return;
+                const confirmLabel = opts.confirmText || 'Подтвердить';
+                const cancelLabel = opts.cancelText || 'Отмена';
+                el.innerHTML = '';
+                const content = document.createElement('div');
+                content.style.display = 'flex';
+                content.style.alignItems = 'center';
+                content.style.gap = '12px';
+                const span = document.createElement('span');
+                span.className = 'pn-msg';
+                span.textContent = msg || '';
+                const actions = document.createElement('div');
+                actions.className = 'pn-actions';
+                const btnConfirm = document.createElement('button');
+                btnConfirm.className = 'btn-small primary pn-confirm-btn';
+                btnConfirm.textContent = confirmLabel;
+                const btnCancel = document.createElement('button');
+                btnCancel.className = 'btn-small pn-cancel-btn';
+                btnCancel.textContent = cancelLabel;
+                actions.appendChild(btnConfirm);
+                actions.appendChild(btnCancel);
+                content.appendChild(span);
+                content.appendChild(actions);
+                el.appendChild(content);
+                el.className = 'page-notification confirm visible';
+                el.style.display = 'block';
+
+                let keyHandler = null;
+                const cleanup = (doRemoveHtml = true) => {
+                    el.classList.remove('visible');
+                    if (keyHandler) document.removeEventListener('keydown', keyHandler);
+                    setTimeout(() => {
+                        el.style.display = 'none';
+                        if (doRemoveHtml) el.innerHTML = '';
+                    }, 300);
+                };
+                const cFn = () => { try { cleanup(); if (typeof onConfirm === 'function') onConfirm(); } catch (e) { console.error(e); } };
+                const xFn = () => { try { cleanup(); if (typeof onCancel === 'function') onCancel(); } catch (e) { console.error(e); } };
+                btnConfirm.addEventListener('click', cFn, { once: true });
+                btnCancel.addEventListener('click', xFn, { once: true });
+                // allow ESC to cancel
+                keyHandler = (ev) => { if (ev.key === 'Escape') { xFn(); } };
+                document.addEventListener('keydown', keyHandler);
+                // focus confirm button for accessibility
+                try { btnConfirm.focus(); } catch (e) {};
+            } catch (e) {
+                console.error('showConfirmation error', e);
+                if (typeof onCancel === 'function') onCancel();
+            }
+        }
+
         // Обработчик загрузки (чтение файла и показ превью)
         if (uploadBtn && fileInput) uploadBtn.addEventListener('click', () => {
             const f = fileInput.files && fileInput.files[0];
             console.debug('upload clicked, file:', f && f.name);
-            if (!f) { alert('Выберите файл для загрузки'); return; }
+            if (!f) { showNotification('Выберите файл для загрузки', 'error'); return; }
             // Update mammoth notice status before previewing
             if (mammothNotice) mammothNotice.style.display = (window.mammoth ? 'none' : 'block');
             showPreviewForFile(f);
         });
 
         if (clearBtn) clearBtn.addEventListener('click', () => {
-            if (!confirm('Очистить содержимое документа?')) return;
-            currentContent = '';
-            if (previewContent) previewContent.textContent = 'Документ очищен';
-            clearExistingBlob();
-            if (fileInput) fileInput.value = null;
-            if (selectedFileName) selectedFileName.textContent = 'Файл не выбран';
-            if (signSelectedFileName) signSelectedFileName.textContent = 'Файл не выбран';
-            if (signatureDate) signatureDate.textContent = '—';
-            if (hashResult) hashResult.style.display = 'none';
-            if (hashValue) hashValue.textContent = '';
-            if (generatedKeyInput) generatedKeyInput.value = '';
-            if (keyArea) keyArea.style.display = 'none';
+            showConfirmation('Очистить содержимое документа?', () => {
+                currentContent = '';
+                if (previewContent) previewContent.textContent = 'Документ очищен';
+                clearExistingBlob();
+                if (fileInput) fileInput.value = null;
+                if (selectedFileName) selectedFileName.textContent = 'Файл не выбран';
+                if (signSelectedFileName) signSelectedFileName.textContent = 'Файл не выбран';
+                if (signatureDate) signatureDate.textContent = '—';
+                if (hashResult) hashResult.style.display = 'none';
+                if (hashValue) hashValue.textContent = '';
+                if (generatedKeyInput) generatedKeyInput.value = '';
+                if (keyArea) keyArea.style.display = 'none';
+                if (kuzKeyInput) kuzKeyInput.value = '';
+                showNotification('Содержимое очищено', 'success');
+            }, () => {
+                showNotification('Очистка отменена', 'info', 2000);
+            }, { confirmText: 'Да, очистить', cancelText: 'Отмена' });
         });
 
         if (encryptBtn) encryptBtn.addEventListener('click', () => {
-            if (!currentContent) { alert('Нет содержимого для шифрования'); return; }
+            if (!currentContent) { showNotification('Нет содержимого для шифрования', 'error'); return; }
             const enc = btoa(unescape(encodeURIComponent('ENCRYPTED:' + currentContent)));
             const blob = new Blob([enc], { type: 'application/octet-stream' });
             const link = document.createElement('a');
@@ -616,11 +689,11 @@
             
             const f = fileInput.files && fileInput.files[0];
             if (!f) { 
-                alert('Сначала выберите файл для отправки на учёт!'); 
+                showNotification('Сначала выберите файл для отправки на учёт!', 'error'); 
                 return; 
             }
             if (!currentContent) {
-                alert('Сначала загрузите документ (нажмите "Загрузить документ")!');
+                showNotification('Сначала загрузите документ (нажмите "Загрузить документ")!', 'error');
                 return;
             }
             const reader = new FileReader();
@@ -638,7 +711,7 @@
                 localStorage.setItem('sentDocument', JSON.stringify(fileData));
                 localStorage.setItem('documentSent', 'true');
                 
-                alert('Документ "' + f.name + '" отправлен на прохождение учёта. Переход на страницу "Схема учета".');
+                showNotification('Документ "' + f.name + '" отправлен на прохождение учёта', 'success');
                 window.location.href = '/static/workflow.html';
             };
             if (typeof currentContent === 'string' && currentContent.includes('base64')) {
@@ -654,7 +727,7 @@
                 localStorage.setItem('sentDocument', JSON.stringify(fileData));
                 localStorage.setItem('documentSent', 'true');
                 
-                alert('Документ "' + f.name + '" отправлен на прохождение учёта. Переход на страницу "Схема учета".');
+                showNotification('Документ "' + f.name + '" отправлен на прохождение учёта', 'success');
                 window.location.href = '/static/workflow.html';
             } else {
                 reader.readAsDataURL(f);
@@ -663,7 +736,7 @@
         // Sign: generate signature date/time
         if (signGenerateBtn) signGenerateBtn.addEventListener('click', () => {
             const f = fileInput.files && fileInput.files[0];
-            if (!f) { alert('Выберите файл для подписи'); return; }
+            if (!f) { showNotification('Выберите файл для подписи', 'error'); return; }
             // For now, generate a timestamp representing the signature date/time
             const d = new Date();
             const pad = (n) => n.toString().padStart(2,'0');
@@ -712,16 +785,19 @@
         // Show/hide toggle removed, no event listener required
         // Нижняя кнопка "Очистить" дублирует функциональность (верхнюю кнопку ранее убрали)
         if (kuzDecryptBottomClearBtn) kuzDecryptBottomClearBtn.addEventListener('click', () => {
-            if (!confirm('Очистить выбранный зашифрованный файл и результат?')) return;
-            if (kuzDecryptFileInput) kuzDecryptFileInput.value = null;
-            if (kuzDecryptSelectedFile) kuzDecryptSelectedFile.textContent = 'Файл не выбран';
-            if (kuzDecryptOutput) kuzDecryptOutput.style.display = 'none';
-            if (kuzDecryptText) kuzDecryptText.textContent = '';
-            if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.disabled = true;
+            showConfirmation('Очистить выбранный зашифрованный файл и результат?', () => {
+                if (kuzDecryptFileInput) kuzDecryptFileInput.value = null;
+                if (kuzDecryptSelectedFile) kuzDecryptSelectedFile.textContent = 'Файл не выбран';
+                if (kuzDecryptOutput) kuzDecryptOutput.style.display = 'none';
+                if (kuzDecryptText) kuzDecryptText.textContent = '';
+                if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.disabled = true;
+                if (kuzKeyInput) kuzKeyInput.value = '';
+                showNotification('Выбранный файл и результат удалены', 'success');
+            }, () => { showNotification('Очистка отменена', 'info', 2000); }, { confirmText: 'Да, очистить', cancelText: 'Отмена' });
         });
         if (kuzDecryptActionDownloadBtn) kuzDecryptActionDownloadBtn.addEventListener('click', () => {
             const f = kuzDecryptFileInput.files && kuzDecryptFileInput.files[0];
-            if (!f) { alert('Выберите зашифрованный файл'); return; }
+            if (!f) { showNotification('Выберите зашифрованный файл', 'error'); return; }
             const r = new FileReader();
             r.onload = function(ev) {
                 try {
@@ -738,7 +814,7 @@
                     link.href = URL.createObjectURL(blob);
                     link.download = 'document.dec.txt';
                     document.body.appendChild(link); link.click(); setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 300);
-                } catch (e) { alert('Ошибка при расшифровке: ' + e.message); }
+                } catch (e) { showNotification('Ошибка при расшифровке: ' + e.message, 'error'); }
             };
             r.readAsText(f);
         });
@@ -746,16 +822,17 @@
         // Копирование даты подписи в буфер обмена
         if (signatureCopyBtn) signatureCopyBtn.addEventListener('click', async () => {
             const txt = signatureDate && signatureDate.textContent ? signatureDate.textContent : '';
-            if (!txt || txt === '—') { alert('Нет даты для копирования'); return; }
-            try {
+            if (!txt || txt === '—') { showNotification('Нет даты для копирования', 'error'); return; }
+                try {
                 await navigator.clipboard.writeText(txt);
                 // quick visual feedback
                 const old = signatureCopyBtn.textContent; signatureCopyBtn.textContent = 'Скопировано'; setTimeout(() => { signatureCopyBtn.textContent = old; }, 1500);
+                showNotification('Дата копирована', 'success');
             } catch (e) {
                 // fallback: try document.execCommand
-                try {
-                    const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); alert('Дата скопирована');
-                } catch (ex) { alert('Не удалось скопировать дату'); }
+                    try {
+                    const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showNotification('Дата скопирована', 'success');
+                } catch (ex) { showNotification('Не удалось скопировать дату', 'error'); }
             }
         });
 
