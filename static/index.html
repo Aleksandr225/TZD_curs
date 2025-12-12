@@ -148,15 +148,13 @@
                                         </div>
                                         <div class="file-select" style="display:flex; gap:8px; align-items:center; flex:1;">
                                             <button id="signFileBtn" type="button" class="btn-small">Загрузить документ</button>
+                                            <input type="file" id="signFileInput" style="display: none;" accept=".pdf,.doc,.docx,.txt">  <!-- Скрытый input, принимает документы -->
+
                                             <span id="signSelectedFileName" class="file-name">Файл не выбран</span>
                                         </div>
                                     </div>
                                     <div style="display:flex; gap:8px; align-items:center; justify-content:flex-start;">
                                         <button id="signGenerateBtn" class="btn-small primary" type="button" disabled>Сформировать подпись</button>
-                                    </div>
-                                    <div id="signatureBox" style="display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid #ddd; padding:8px; border-radius:6px; background:#fbfbfc;">
-                                        <div id="signatureDate" style="font-family:monospace; color:#0f172a;">—</div>
-                                        <button id="signatureCopyBtn" class="btn-small" type="button" aria-label="Копировать дату подписи">Копировать</button>
                                     </div>
                                 </div>
                                 <!-- Контролы режима хеширования (по умолчанию скрыты) -->
@@ -227,6 +225,78 @@
             const pane = document.getElementById(target);
             if (pane) pane.style.display = 'block';    
         }));
+        
+
+        
+        document.getElementById('signFileBtn').addEventListener('click', function() {
+            document.getElementById('signFileInput').click();  // Активируем скрытый input
+        });
+
+        // Когда файл выбран, обновляем интерфейс
+        document.getElementById('signFileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                document.getElementById('signSelectedFileName').textContent = file.name;  // Показываем имя файла
+                document.getElementById('signGenerateBtn').disabled = false;  // Активируем кнопку "Сформировать подпись"
+            } else {
+                document.getElementById('signSelectedFileName').textContent = 'Файл не выбран';
+                document.getElementById('signGenerateBtn').disabled = true;
+            }
+        });
+
+
+        document.getElementById('signGenerateBtn').addEventListener('click', async function() {
+            const fileInput = document.getElementById('signFileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Пожалуйста, выберите файл.');
+                return;
+            }
+
+            // Создаём FormData для отправки файла
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // Отправляем файл на Flask-роут /sig
+                const response = await fetch('/sig', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Ошибка сервера: ${response.status}`);
+                }
+
+                // Получаем файл как Blob
+                const blob = await response.blob();
+                
+                // Создаём URL для скачивания
+                const url = window.URL.createObjectURL(blob);
+                
+                // Создаём временную ссылку для скачивания
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'sig.sig';  // Имя файла при скачивании (как в вашем Flask-коде)
+                document.body.appendChild(a);
+                a.click();  // Инициируем скачивание
+                
+                // Очищаем URL и ссылку
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                alert('Файл с подписью скачан!');  // Уведомление пользователю
+                
+                // Опционально: сброс интерфейса
+                fileInput.value = '';
+                document.getElementById('signSelectedFileName').textContent = 'Файл не выбран';
+                document.getElementById('signGenerateBtn').disabled = true;
+                
+            } catch (error) {
+                console.error('Ошибка при отправке файла:', error);
+                alert('Ошибка при формировании подписи. Проверьте консоль для деталей.');
+            }
+        });
 
         // Устанавливаем начальную активную вкладку в зависимости от пути URL
         function setActiveTopTabByPath() {
@@ -410,7 +480,7 @@
             });
         }
         // Кнопка в режиме подписи открывает тот же диалог выбора файла
-        if (signFileBtn && fileInput) signFileBtn.addEventListener('click', () => { console.debug('signFileBtn clicked'); fileInput.click(); });
+        
         // Hash choose button opens the same workspace file dialog
         if (hashChooseBtn && fileInput) hashChooseBtn.addEventListener('click', () => { console.debug('hashChooseBtn clicked'); fileInput.click(); });
 
@@ -813,18 +883,6 @@
             } else {
                 reader.readAsDataURL(f);
             }
-        });
-        // Sign: generate signature date/time
-        if (signGenerateBtn) signGenerateBtn.addEventListener('click', () => {
-            const f = fileInput.files && fileInput.files[0];
-            if (!f) { alert('Выберите файл для подписи'); return; }
-            // For now, generate a timestamp representing the signature date/time
-            const d = new Date();
-            const pad = (n) => n.toString().padStart(2,'0');
-            const formatted = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-            if (signatureDate) signatureDate.textContent = formatted;
-            // optionally store the signature into currentContent (mock)
-            currentContent = 'SIGNATURE:' + formatted;
         });
 
         // Переключение подпанелей режима "Кузнечик" (Зашифровать / Расшифровать)

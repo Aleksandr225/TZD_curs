@@ -3,7 +3,7 @@ from flask import Flask, render_template, redirect, request, jsonify, send_file
 from main import *
 from gostsig import *
 import shifr
-
+import sys
 app = Flask(__name__, template_folder="static")
 @app.route('/')
 def home_page():
@@ -123,7 +123,7 @@ def get_sig():
         return jsonify({'error': 'Файл не получен'}), 400
     file_path = f"uploads/{uploaded_file.filename}"
     uploaded_file.save(file_path)
-    sig_path = get_sig(file_path)
+    sig_path = gost(file_path)
     try:
         return send_file(sig_path, as_attachment=True, download_name='crypted_file')  # Скачивание с именем
     except Exception as e:
