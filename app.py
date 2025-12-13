@@ -1,8 +1,10 @@
 
-from flask import Flask, render_template, redirect, request, jsonify
+from flask import Flask, render_template, redirect, request, jsonify, send_from_directory
+import os
 from main import *
 
 app = Flask(__name__, template_folder="static")
+# SCHEMES_FOLDER = 'static/schemes'
 
 @app.route('/')
 def home_page():

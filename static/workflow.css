@@ -458,3 +458,92 @@ select.form-input option {
     padding: 10px;
     font-size: 14px;
 }
+
+/* Стиль для кнопки подписи документа */
+.file-select {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.file-name {
+    color: #6b7280;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.file-name.selected {
+    color: #059669;
+    font-weight: bold;
+}
+
+#signDocumentBtn {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+#signDocumentBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .file-select {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .file-name {
+        max-width: 100%;
+    }
+    
+    #signDocumentBtn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Стили для отображения схемы */
+#schemeImageContainer {
+    text-align: center;
+    padding: 10px;
+}
+
+#schemeImage {
+    max-height: 400px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+#schemeImage:hover {
+    transform: scale(1.01);
+}
+
+#schemeInfo {
+    font-style: italic;
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+/* Адаптивность для изображений схем */
+@media (max-width: 768px) {
+    #schemeImage {
+        max-height: 300px;
+    }
+    
+    .workflow-placeholder {
+        height: auto;
+        min-height: 250px;
+    }
+}

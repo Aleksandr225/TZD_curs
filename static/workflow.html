@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <!-- Добавляем контент страницы Схемы учета -->
+    <!-- контент страницы Схемы учета -->
     <div class="content-container">
         <h1 class="page-title">Схемы учета</h1>
         
@@ -54,6 +54,14 @@
                         Выбрать файл
                     </button>
                     <span id="workflowFileName" class="file-name">Файл не выбран</span>
+                    <button id="signDocumentBtn" class="btn-small primary" style="display: none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
+                            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
+                            <path d="M18 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path>
+                        </svg>
+                        Подписать документ
+                    </button>
                 </div>
             </div>
         </div>
@@ -97,9 +105,9 @@
         
         <div class="workflow-section">
             <h2>Схема прохода документов</h2>
-            <div class="workflow-placeholder">
+            <div class="workflow-placeholder" id="workflowPlaceholder">
                 <div class="preview-content-default">
-                    Схема прохождения документов будет отображена здесь
+                    Схема прохождения документов будет отображена здесь после формирования
                 </div>
             </div>
         </div>
@@ -130,11 +138,13 @@
         const docSource = document.getElementById('docSource');
         const extensionDisplay = document.getElementById('extensionDisplay');
         const generateButton = document.getElementById('generateWorkflowBtn');
+        const signDocumentBtn = document.getElementById('signDocumentBtn');
+        const workflowPlaceholder = document.getElementById('workflowPlaceholder');
         
         // хранение текущего файла
         let currentWorkflowFile = null;
         
-        // Обработка выбора 
+        // Обработка выбора файла
         if (workflowUploadBtn && workflowFileInput) {
             workflowUploadBtn.addEventListener('click', () => {
                 workflowFileInput.click();
@@ -146,6 +156,9 @@
                     currentWorkflowFile = file;
                     workflowFileName.textContent = `${file.name} (${formatBytes(file.size)})`;
                     workflowFileName.classList.add('selected');
+                    
+                    // кнопка подписи
+                    signDocumentBtn.style.display = 'inline-flex';
                     
                     // Получаем расширение файла
                     const fileName = file.name;
@@ -159,7 +172,7 @@
                         extensionDisplay.style.display = extension ? 'flex' : 'none';
                     }
                     
-                    // Автозаполнение имени (без расширения)
+                    // Автозаполнение имени 
                     if (docName) {
                         const nameWithoutExt = extension 
                             ? fileName.substring(0, fileName.lastIndexOf('.'))
@@ -176,7 +189,58 @@
             });
         }
         
-        // Проверяем, есть ли отправленный документ из index.html
+        // Кнопка "Подписать документ"
+        if (signDocumentBtn) {
+            signDocumentBtn.addEventListener('click', async function() {
+                if (!currentWorkflowFile) {
+                    alert('Сначала выберите файл для подписи!');
+                    return;
+                }
+                
+                // индикатор загрузки
+                const originalText = signDocumentBtn.innerHTML;
+                signDocumentBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 11-6.219-8.56"></path>
+                    </svg>
+                    Вычисляется подпись...
+                `;
+                signDocumentBtn.disabled = true;
+                
+                try {
+                    // FormData для отправки файла
+                    const formData = new FormData();
+                    formData.append('file', currentWorkflowFile);
+                    
+                    // POST-запрос 
+                    const response = await fetch('/sign_document', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Ошибка сервера: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.signature) {
+                        alert('Цифровая подпись успешно вычислена!');
+                    } else {
+                        alert('Подпись вычислена');
+                    }
+                    
+                } catch (error) {
+                    console.error('Ошибка при подписании документа:', error);
+                    alert(`Ошибка: ${error.message}`);
+                } finally {
+                    signDocumentBtn.innerHTML = originalText;
+                    signDocumentBtn.disabled = false;
+                }
+            });
+        }
+        
+      
         const documentSent = localStorage.getItem('documentSent');
         if (documentSent === 'true') {
             const fileData = JSON.parse(localStorage.getItem('sentDocument') || '{}');
@@ -197,7 +261,8 @@
                     workflowFileName.style.fontWeight = 'bold';
                 }
                 
-                // Получаем расширение файла
+                signDocumentBtn.style.display = 'inline-flex';
+                
                 const fileName = fileData.name;
                 const extension = fileName.includes('.') 
                     ? fileName.substring(fileName.lastIndexOf('.')) 
@@ -217,12 +282,10 @@
                     docName.value = nameWithoutExt;
                 }
                 
-                // Автоматически устанавливаем источник для файла с главной страницы
                 if (docSource) {
-                    docSource.value = ""; // Пустое значение
-                    // Можно добавить placeholder или подсказку
-                    docSource.focus(); // Фокус на поле для ввода
-}
+                    docSource.value = ""; 
+                    docSource.focus(); 
+                }
                 
                 // объект File из сохраненных данных
                 if (fileData.content) {
@@ -260,7 +323,6 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
         
-        // Обработка кнопки "Сформировать"
         if (generateButton) {
             generateButton.addEventListener('click', function() {
                 const docNameValue = docName.value.trim();
@@ -290,26 +352,51 @@
                     return;
                 }
                 
+                // Показываем сообщение об успешной обработке
                 alert(`Документ "${docNameValue}" успешно загружен и сформирован согласно выбранной схеме учета.\nТип: ${docTypeValue}\nИсточник: ${docSourceValue}`);
                 
-                // Здесь потом добавлю отправку файла в бд
+                workflowPlaceholder.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 24px; color: #94a3b8;">⏳</div>
+                        <div style="margin-top: 15px; color: #475569;">Загрузка схемы документа...</div>
+                    </div>
+                `;
                 
-                // Очищаем форму после успешной обработки
-                if (workflowFileInput) workflowFileInput.value = '';
-                if (workflowFileName) {
-                    workflowFileName.textContent = 'Файл не выбран';
-                    workflowFileName.style.color = '';
-                    workflowFileName.style.fontWeight = '';
-                }
-                if (docName) docName.value = '';
-                if (docType) docType.value = '';
-                if (docSource) docSource.value = '';
-                if (extensionDisplay) {
-                    extensionDisplay.textContent = '';
-                    extensionDisplay.style.display = 'none';
-                }
-                document.getElementById('docFields').value = '';
-                currentWorkflowFile = null;
+                
+                const schemeUrl = `/static/schemes/${docTypeValue}.png`;
+                
+                // 3.  изображение схемы
+                const img = new Image();
+                
+                img.onload = function() {
+                    // Успешная загрузка 
+                    workflowPlaceholder.innerHTML = `
+                        <div style="width: 100%; height: 100%; overflow: auto; display: flex; align-items: flex-start; justify-content: center;">
+                            <img src="${schemeUrl}" 
+                                alt="Схема прохождения ${docTypeValue}" 
+                                style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        </div>
+                    `;
+                };
+                
+                img.onerror = function() {
+                    // Ошибка загрузки схемы
+                    workflowPlaceholder.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <div style="font-size: 48px; color: #94a3b8;">📄</div>
+                            <div style="margin-top: 15px; font-weight: bold; color: #475569;">
+                                Схема документа не найдена
+                            </div>
+                            <div style="margin-top: 10px; color: #64748b; font-size: 14px;">
+                                Файл: static/schemes/${docTypeValue}.png
+                            </div>
+                        </div>
+                    `;
+                };
+                
+                img.src = schemeUrl;
+                
+                // Здесь потом добавлю отправку файла в бд
             });
         }
         
